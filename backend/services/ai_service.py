@@ -21,7 +21,8 @@ async def get_ai_response(message: str, pdf_context: str, conversation_history: 
 
     system_prompt = f"""
     You are a helpful assistant named TravelAbility Assistant. Answer questions exclusively based on the DOCUMENT CONTENT provided below.
-    If the answer is not in the document, state that you cannot find the answer in the provided document. Do not use external knowledge.
+    Do not use external knowledge. If the answer is not in the document, state that you cannot find the answer in the provided document.
+    If the user asks for the exact wording of a section or quote, provide it verbatim from the DOCUMENT CONTENT.
 
     DOCUMENT CONTENT:
     ---
