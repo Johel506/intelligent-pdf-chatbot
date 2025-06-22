@@ -1,27 +1,52 @@
-import React, { useState } from 'react';
+// frontend/src/components/ChatInterface.jsx
+import React, { useState, useEffect, useRef } from 'react';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
+import { sendMessage } from '../services/api'; // Import our new API function
 import './ChatInterface.css';
 
 const ChatInterface = () => {
-  // Dummy messages for layout purposes. This fulfills the chat history display requirement.
-  const [messages, setMessages] = useState([
-    { role: 'ai', content: 'Hello! How can I help you with the document today?' },
-    { role: 'user', content: 'What is this document about?' },
-    { role: 'ai', content: 'This document is about TravelAbility, a service that provides personalized travel plans for people with disabilities, including accessible accommodations and transportation.' }
-  ]);
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+  const [conversationId, setConversationId] = useState('session-' + Date.now()); // Generate a unique session ID
+  const [isLoading, setIsLoading] = useState(false); // To show a loading indicator
+
+  const handleSendMessage = async () => {
+    if (input.trim() === '' || isLoading) return;
+
+    const userMessage = { role: 'user', content: input };
+    setMessages(prevMessages => [...prevMessages, userMessage]);
+    setInput('');
+    setIsLoading(true);
+
+    // Call the real backend API
+    const aiResponseContent = await sendMessage(input, conversationId);
+
+    const aiMessage = { role: 'ai', content: aiResponseContent };
+    setMessages(prevMessages => [...prevMessages, aiMessage]);
+    setIsLoading(false);
+  };
+
+  const handleReset = () => {
+    setMessages([]);
+    // Generate a new conversation ID for the new session
+    setConversationId('session-' + Date.now());
+  };
 
   return (
     <div className="chat-container">
       <div className="chat-header">
         <h2>PDF Chatbot</h2>
-        {/* This button fulfills the clear/reset conversation requirement */}
-        <button className="reset-button">Reset</button>
+        <button className="reset-button" onClick={handleReset}>Reset</button>
       </div>
-      {/* The MessageList component handles the chat history display */}
       <MessageList messages={messages} />
-      {/* The MessageInput component handles the message input field and send button */}
-      <MessageInput />
+      {/* We add a simple loading indicator */}
+      {isLoading && <div className="loading-indicator">AI is thinking...</div>}
+      <MessageInput 
+        input={input}
+        setInput={setInput}
+        handleSendMessage={handleSendMessage}
+      />
     </div>
   );
 };

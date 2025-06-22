@@ -1,0 +1,48 @@
+/* frontend/src/components/ChatInterface.css */
+.chat-container {
+  width: 90%;
+  max-width: 800px;
+  height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px S12px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.chat-header {
+  padding: 1rem;
+  background-color: #007bff;
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #ddd;
+}
+
+.chat-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.reset-button {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.reset-button:hover {
+  background-color: #c82333;
+}
+/* Añade esto al final de frontend/src/components/ChatInterface.css */
+.loading-indicator {
+  padding: 0.5rem;
+  text-align: center;
+  font-style: italic;
+  color: #888;
+}
