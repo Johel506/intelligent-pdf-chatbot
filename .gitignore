@@ -35,4 +35,3 @@ Thumbs.db
 backend/temp/
 frontend/build/
 docs/build/
-*.pdf
