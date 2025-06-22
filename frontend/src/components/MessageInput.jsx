@@ -1,12 +1,9 @@
-// frontend/src/components/MessageInput.jsx
 import React from 'react';
 import './MessageInput.css';
 
-// We receive props from the parent component (ChatInterface)
-const MessageInput = ({ input, setInput, handleSendMessage }) => {
-  
+const MessageInput = ({ input, setInput, handleSendMessage, disabled }) => {
   const handleKeyDown = (event) => {
-    if (event.key === 'Enter') {
+    if (event.key === 'Enter' && !disabled) {
       handleSendMessage();
     }
   };
@@ -16,13 +13,14 @@ const MessageInput = ({ input, setInput, handleSendMessage }) => {
       <input
         type="text"
         className="message-input"
-        placeholder="Type your message..."
-        value={input} // The value is controlled by the parent's state
-        onChange={(e) => setInput(e.target.value)} // The parent's function updates the state
-        onKeyDown={handleKeyDown} // Allows sending with the Enter key
+        placeholder={disabled ? "Waiting for response..." : "Type your message..."}
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={handleKeyDown}
+        disabled={disabled} // Disable the input field while loading
       />
-      <button className="send-button" onClick={handleSendMessage}>
-        Send
+      <button className="send-button" onClick={handleSendMessage} disabled={disabled}>
+        {disabled ? '...' : 'Send'}
       </button>
     </div>
   );

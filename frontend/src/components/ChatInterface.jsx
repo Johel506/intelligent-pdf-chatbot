@@ -1,35 +1,96 @@
 // frontend/src/components/ChatInterface.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
-import { sendMessage } from '../services/api'; // Import our new API function
 import './ChatInterface.css';
 
 const ChatInterface = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
-  const [conversationId, setConversationId] = useState('session-' + Date.now()); // Generate a unique session ID
-  const [isLoading, setIsLoading] = useState(false); // To show a loading indicator
+  const [conversationId, setConversationId] = useState('session-' + Date.now());
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSendMessage = async () => {
     if (input.trim() === '' || isLoading) return;
 
     const userMessage = { role: 'user', content: input };
-    setMessages(prevMessages => [...prevMessages, userMessage]);
+    // Add user message and an empty placeholder for the AI's response
+    setMessages(prev => [...prev, userMessage, { role: 'ai', content: '' }]);
+    
+    const messageToSend = input;
     setInput('');
     setIsLoading(true);
 
-    // Call the real backend API
-    const aiResponseContent = await sendMessage(input, conversationId);
+    try {
+      const response = await fetch('http://127.0.0.1:8000/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: messageToSend,
+          conversation_id: conversationId,
+        }),
+      });
 
-    const aiMessage = { role: 'ai', content: aiResponseContent };
-    setMessages(prevMessages => [...prevMessages, aiMessage]);
-    setIsLoading(false);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          setIsLoading(false);
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Procesa cada línea completa
+        let lines = buffer.split('\n');
+        buffer = lines.pop(); // La última línea puede estar incompleta
+
+        for (let line of lines) {
+          line = line.trim();
+          if (!line) continue;
+          // Si tu backend manda 'data: {...}', quita el prefijo:
+          if (line.startsWith('data: ')) line = line.slice(6);
+          try {
+            const data = JSON.parse(line);
+            // --- DIAGNOSTIC LOG ---
+            console.log('Received stream data:', data); 
+
+            if (data.type === 'content') {
+              setMessages(prev => {
+                const newMessages = [...prev];
+                const lastMessage = newMessages[newMessages.length - 1];
+                lastMessage.content += data.content;
+                return newMessages;
+              });
+            } else if (data.type === 'done') {
+              setIsLoading(false);
+              return;
+            }
+          } catch (e) {
+            console.error("Failed to parse stream data chunk:", line);
+          }
+        }
+        // Al final, podrías intentar parsear lo que quede en buffer si no está vacío
+      }
+    } catch (err) {
+      console.error("Failed to fetch stream:", err);
+      // Update the last message with an error
+      setMessages(prev => {
+        const newMessages = [...prev];
+        newMessages[newMessages.length - 1].content = 'Error: Could not connect to the service.';
+        return newMessages;
+      });
+      setIsLoading(false);
+    }
   };
 
   const handleReset = () => {
     setMessages([]);
-    // Generate a new conversation ID for the new session
     setConversationId('session-' + Date.now());
   };
 
@@ -40,12 +101,12 @@ const ChatInterface = () => {
         <button className="reset-button" onClick={handleReset}>Reset</button>
       </div>
       <MessageList messages={messages} />
-      {/* We add a simple loading indicator */}
-      {isLoading && <div className="loading-indicator">AI is thinking...</div>}
+      {isLoading && <div className="loading-indicator">AI is typing...</div>}
       <MessageInput 
         input={input}
         setInput={setInput}
         handleSendMessage={handleSendMessage}
+        disabled={isLoading}
       />
     </div>
   );
