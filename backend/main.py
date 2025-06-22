@@ -1,22 +1,24 @@
 # backend/main.py
 
 # --- Step 1: Load environment variables FIRST ---
-# This ensures that any subsequent module imports have access to the environment variables.
 from dotenv import load_dotenv
 import os
 load_dotenv()
-print(f"OpenAI API Key loaded: {os.getenv('OPENAI_API_KEY')[:15] if os.getenv('OPENAI_API_KEY') else 'None'}") # You can remove this diagnostic line later
 
 # --- Step 2: Import other libraries and services AFTER loading variables ---
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 
 # Now we can safely import our services
+# We are disabling this specific Pylint warning because we have a good reason
+# to load environment variables before this import.
 from services.pdf_service import extract_text_from_pdf
-from services.ai_service import get_ai_response
+from services.ai_service import stream_ai_response  # pylint: disable=C0413
+
 
 # --- Global In-Memory Storage ---
 PDF_CONTEXT = ""
@@ -78,8 +80,11 @@ async def health_check(): #
 
 
 @app.post("/chat")
-async def chat_endpoint(message: ChatMessage):
-    """Main endpoint to receive user messages and return an AI response."""
+async def chat_endpoint(message: ChatMessage): 
+    """
+    Main endpoint to receive user messages and stream an AI response.
+    This supports real-time streaming using Server-Sent Events (SSE). 
+    """
     global CONVERSATION_HISTORY
 
     if not PDF_CONTEXT:
@@ -90,19 +95,15 @@ async def chat_endpoint(message: ChatMessage):
     if conversation_id not in CONVERSATION_HISTORY:
         CONVERSATION_HISTORY[conversation_id] = []
     
-    # Add user message to history
     user_message_entry = {"role": "user", "content": message.message}
     CONVERSATION_HISTORY[conversation_id].append(user_message_entry)
 
-    # Pass the current history (which includes the new user message) to the AI service
-    ai_response_content = await get_ai_response(
-        message=message.message,
-        pdf_context=PDF_CONTEXT,
-        conversation_history=CONVERSATION_HISTORY[conversation_id]
+    # Return the special StreamingResponse object that calls our generator
+    return StreamingResponse(
+        stream_ai_response(
+            message=message.message,
+            pdf_context=PDF_CONTEXT, 
+            conversation_history=CONVERSATION_HISTORY[conversation_id]
+        ), 
+        media_type="text/event-stream"
     )
-
-    # Add AI response to history
-    CONVERSATION_HISTORY[conversation_id].append({"role": "assistant", "content": ai_response_content})
-
-    return {"response": ai_response_content}
-
