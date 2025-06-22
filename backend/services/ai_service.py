@@ -9,7 +9,7 @@ except openai.OpenAIError as e:
     print(f"Error initializing OpenAI client: {e}")
     client = None
 
-def stream_ai_response(message: str, pdf_context: str, conversation_history: list):
+async def stream_ai_response(message: str, pdf_context: str, conversation_history: list):
     """
    Generates a response from the OpenAI API and streams it in parts using yield for SSE (Server-Sent Events).
     """
@@ -20,9 +20,16 @@ def stream_ai_response(message: str, pdf_context: str, conversation_history: lis
 
     safe_context = pdf_context[:48000]
     system_prompt = f"""
-    You are a helpful assistant named TravelAbility Assistant. Answer questions exclusively based on the DOCUMENT CONTENT provided below.
-    Do not use external knowledge. If the answer is not in the document, state that you cannot find the answer in the provided document.
+    You are a helpful assistant named TravelAbility Assistant.
+    Your main goal is to provide **concise, direct, and non-repetitive answers** to the user's questions.
+    Each answer should be a **standalone response**, without referencing previous conversational turns or repeating introductory phrases.
+
+    Answer questions exclusively based on the DOCUMENT CONTENT provided below.
+    Do not use external knowledge.
+    If the answer is not in the document, state clearly and concisely that you cannot find the answer in the provided document.
     If the user asks for the exact wording of a section or quote, provide it verbatim from the DOCUMENT CONTENT.
+
+
 
     DOCUMENT CONTENT:
     ---
