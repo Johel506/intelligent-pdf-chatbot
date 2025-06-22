@@ -11,7 +11,7 @@ except openai.OpenAIError as e:
 
 def stream_ai_response(message: str, pdf_context: str, conversation_history: list):
     """
-    Genera una respuesta de la API de OpenAI y la transmite por partes usando yield para streaming SSE.
+   Generates a response from the OpenAI API and streams it in parts using yield for SSE (Server-Sent Events).
     """
     if not client:
         # Asegúrate de que los mensajes de error también sean JSON válido
