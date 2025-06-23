@@ -14,26 +14,19 @@ async def stream_ai_response(message: str, pdf_context: str, conversation_histor
    Generates a response from the OpenAI API and streams it in parts using yield for SSE (Server-Sent Events).
     """
     if not client:
-        # Make sure that error messages are also valid JSON
+        # Ensure that error messages are also valid JSON
         yield 'data: {"type": "error", "content": "OpenAI client is not initialized."}\n\n'
         return
 
-    safe_context = pdf_context[:48000]
     system_prompt = f"""
     You are a helpful assistant named TravelAbility Assistant.
-    Your main goal is to provide **concise, direct, and non-repetitive answers** to the user's questions.
-    Each answer should be a **standalone response**, without referencing previous conversational turns or repeating introductory phrases.
-
-    Answer questions exclusively based on the DOCUMENT CONTENT provided below.
+    Your main goal is to provide concise and accurate answers based *only* on the RELEVANT DOCUMENT EXCERPTS provided below.
     Do not use external knowledge.
-    If the answer is not in the document, state clearly and concisely that you cannot find the answer in the provided document.
-    If the user asks for the exact wording of a section or quote, provide it verbatim from the DOCUMENT CONTENT.
+    If the answer is not in the provided excerpts, state clearly that you cannot find the answer in the provided information.
 
-
-
-    DOCUMENT CONTENT:
+    RELEVANT DOCUMENT EXCERPTS:
     ---
-    {safe_context}
+    {pdf_context} 
     ---
     """
 
@@ -56,7 +49,7 @@ async def stream_ai_response(message: str, pdf_context: str, conversation_histor
             if hasattr(chunk.choices[0].delta, "content"):
                 content = chunk.choices[0].delta.content
                 if content:
-                    # **Corrected line:** Serialize the dictionary to a JSON string
+                    # Serialize the dictionary to a JSON string
                     yield f'data: {json.dumps({"type": "content", "content": content})}\n\n'
         
         # Indicate to the frontend that it's finished

@@ -22,8 +22,9 @@ from services.ai_service import stream_ai_response  # pylint: disable=C0413
 
 
 # --- Global In-Memory Storage ---
-PDF_CONTEXT = ""
-CONVERSATION_HISTORY = {} 
+# PDF_CONTEXT = "" <-- We no longer need this
+VECTOR_STORE = None # <-- We will store our vector database here
+CONVERSATION_HISTORY = {}
 
 app = FastAPI(
     title="Intelligent PDF Chatbot API",
@@ -43,23 +44,29 @@ app.add_middleware(
 @app.on_event("startup")
 def startup_event():
     """
-    Loads the PDF content into the global PDF_CONTEXT variable when the application starts.
-    If PDF loading fails, raises an exception to prevent the application from starting.
+    Loads the PDF, splits it into chunks, creates embeddings, and stores them
+    in an in-memory FAISS vector database.
     """
-    global PDF_CONTEXT
+    global VECTOR_STORE
+    from langchain_community.vectorstores import FAISS
+    from langchain_openai import OpenAIEmbeddings
+    from langchain.text_splitter import RecursiveCharacterTextSplitter
     pdf_path = os.getenv("PDF_PATH")
     if not pdf_path:
-        print("❌ CRITICAL ERROR: PDF_PATH environment variable not set. Application cannot start.")
-        # Raises an exception to stop the server startup
         raise RuntimeError("PDF_PATH environment variable not set.")
-    
-    PDF_CONTEXT = extract_text_from_pdf(pdf_path)
-    if not PDF_CONTEXT:
-        print(f"❌ CRITICAL ERROR: Could not load PDF context from '{pdf_path}'. Application cannot start.")
-        # Raises an exception to stop the server startup
+    print("Loading PDF for RAG pipeline...")
+    pdf_text = extract_text_from_pdf(pdf_path)
+    if not pdf_text:
         raise RuntimeError(f"Could not load PDF context from '{pdf_path}'.")
-    else:
-        print("✅ PDF loaded and text extracted successfully during startup.")
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000,
+        chunk_overlap=100
+    )
+    chunks = text_splitter.split_text(pdf_text)
+    print(f"PDF split into {len(chunks)} chunks.")
+    embeddings = OpenAIEmbeddings()
+    VECTOR_STORE = FAISS.from_texts(texts=chunks, embedding=embeddings)
+    print("✅ FAISS vector store created successfully.")
 
 
 # --- Pydantic Data Models ---
@@ -83,7 +90,7 @@ async def health_check(): #
     return HealthResponse(
         status="healthy",
         timestamp=datetime.now().isoformat(),
-        pdf_loaded=bool(PDF_CONTEXT)
+        pdf_loaded=bool(VECTOR_STORE)
     )
 
 
@@ -91,69 +98,49 @@ async def health_check(): #
 @app.post("/chat")
 async def chat_endpoint(message: ChatMessage):
     """
-    Main endpoint to receive user messages and stream an AI response.
-    It now also captures and saves the AI's full response to conversation history.
+    Chat endpoint that uses a RAG pipeline to get answers.
     """
-    global CONVERSATION_HISTORY
-
-    if not PDF_CONTEXT:
-        raise HTTPException(status_code=503, detail="PDF context is not loaded yet.")
-
+    global CONVERSATION_HISTORY, VECTOR_STORE
+    if not VECTOR_STORE:
+        raise HTTPException(status_code=503, detail="Vector store is not initialized yet.")
     conversation_id = message.conversation_id
-
     if conversation_id not in CONVERSATION_HISTORY:
         CONVERSATION_HISTORY[conversation_id] = []
-
-    # 1. Add the user message to the history
     user_message_entry = {"role": "user", "content": message.message}
     CONVERSATION_HISTORY[conversation_id].append(user_message_entry)
-
-    # Variable to accumulate the complete assistant response
     full_ai_response_content = ""
-
-    # Async generator function to process the stream
+    # --- RAG Logic ---
+    print(f"Searching for relevant chunks for: '{message.message}'")
+    retriever = VECTOR_STORE.as_retriever(search_kwargs={"k": 4})
+    relevant_docs = retriever.get_relevant_documents(message.message)
+    rag_context = "\n\n---\n\n".join([doc.page_content for doc in relevant_docs])
+    print("RAG context created.")
     async def response_stream_generator():
-        nonlocal full_ai_response_content # Allows modifying the external variable
-
-        # Call stream_ai_response to get the chunks
-        # Note: stream_ai_response in services/ai_service.py returns `data: JSON_STRING\n\n`
+        nonlocal full_ai_response_content
         async for chunk_data in stream_ai_response(
             message=message.message,
-            pdf_context=PDF_CONTEXT,
-            conversation_history=CONVERSATION_HISTORY[conversation_id] # Pass the current history
+            pdf_context=rag_context,
+            conversation_history=CONVERSATION_HISTORY[conversation_id]
         ):
-            # Parse the chunk to extract the real content
-            # This assumes the format 'data: {"type": "content", "content": "..."}\n\n'
             try:
                 line = chunk_data.strip()
                 if line.startswith("data: "):
+                    import json
                     json_payload = json.loads(line[len("data: "):])
                     if json_payload.get("type") == "content":
                         content_part = json_payload.get("content", "")
                         full_ai_response_content += content_part
-                
-                # Careful: If the client expects `data: ...` and you only send `content`,
-                # the frontend might need to be adjusted. We assume the frontend
-                # expects the same format of `chunk_data` that `ai_service.py` generates.
-                yield chunk_data # Forward the chunk to the client immediately
-            except json.JSONDecodeError:
-                # Handle chunks that are not valid JSON (e.g. the 'done' chunk)
-                yield chunk_data # Still sent to avoid breaking the client stream
-
-        # 3. After the generator ends (all stream has been processed),
-        # save the complete assistant response to the history.
-        # This happens AFTER all 'yield' statements have been executed.
-        if full_ai_response_content: # Make sure there's content to save
+                yield chunk_data
+            except Exception:
+                yield chunk_data
+        if full_ai_response_content:
             assistant_message_entry = {"role": "assistant", "content": full_ai_response_content}
             CONVERSATION_HISTORY[conversation_id].append(assistant_message_entry)
             print(f"✅ AI Response saved to history for conversation_id: {conversation_id}")
-            # print(f"Current history for {conversation_id}: {CONVERSATION_HISTORY[conversation_id]}") # For debugging
         else:
             print(f"⚠️ AI Response was empty for conversation_id: {conversation_id}, not saved.")
-
-    # Return the StreamingResponse that uses our new generator
     return StreamingResponse(
-        response_stream_generator(), # We use our new generator function
+        response_stream_generator(),
         media_type="text/event-stream"
     )
 
