@@ -215,3 +215,25 @@
     gap: var(--space-xs);
   }
 }
+
+/* Estilos para el contenido renderizado con Markdown */
+.message-content p {
+  margin: 0 0 8px 0; /* Añade un pequeño espacio debajo de los párrafos */
+}
+.message-content p:last-child {
+  margin-bottom: 0;
+}
+
+.message-content ul,
+.message-content ol {
+  padding-left: 20px;
+  margin: 8px 0;
+}
+
+.message-content li {
+  margin-bottom: 4px;
+}
+
+.message-content strong {
+  font-weight: 600;
+}

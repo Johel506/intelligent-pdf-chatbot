@@ -1,4 +1,6 @@
 import React, { useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import './MessageList.css';
 
 const MessageList = ({ messages }) => {
@@ -41,7 +43,11 @@ const MessageList = ({ messages }) => {
         messages.map((msg, index) => (
           <div key={index} className={`message ${msg.role}`}>
             {msg.role === 'ai' && getAvatar(msg.role)}
-            <div className="message-content">{msg.content}</div>
+            <div className="message-content">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {msg.content}
+              </ReactMarkdown>
+            </div>
             {msg.role === 'user' && getAvatar(msg.role)}
           </div>
         ))
