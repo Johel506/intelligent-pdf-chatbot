@@ -6,7 +6,7 @@ from langchain.docstore.document import Document
 def extract_documents_from_pdf(pdf_path: str) -> list[Document]:
     """
     Opens and extracts text from each page of a PDF file,
-    creating a LangChain Document object per page with metadata.
+    creating a Document object per page with metadata.
     """
     if not os.path.exists(pdf_path):
         print(f"Error: PDF file not found at path: {pdf_path}")
@@ -20,7 +20,7 @@ def extract_documents_from_pdf(pdf_path: str) -> list[Document]:
             for i, page in enumerate(pdf_reader.pages):
                 page_content = page.extract_text()
                 if page_content:
-                    # Create a LangChain Document with metadata
+                    # We create a LangChain Document with metadata
                     doc = Document(
                         page_content=page_content,
                         metadata={'page_number': i + 1, 'source': os.path.basename(pdf_path)}

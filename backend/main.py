@@ -119,12 +119,9 @@ async def chat_endpoint(message: ChatMessage):
         CONVERSATION_HISTORY[conversation_id] = []
     user_message_entry = {"role": "user", "content": message.message}
     CONVERSATION_HISTORY[conversation_id].append(user_message_entry)
-    full_ai_response_content = ""
-    # --- RAG Logic ---
-    print(f"Searching for relevant chunks for: '{message.message}'")
     retriever = VECTOR_STORE.as_retriever(search_kwargs={"k": 4})
     relevant_docs = retriever.get_relevant_documents(message.message)
-    # Prepare sources to send to the frontend
+    
     source_list = []
     for doc in relevant_docs:
         source_list.append({
@@ -132,17 +129,21 @@ async def chat_endpoint(message: ChatMessage):
             "content": doc.page_content
         })
 
-    rag_context = "\n\n---\n\n".join([doc.page_content for doc in relevant_docs])
-    print("RAG context created.")
+    # Format the context for the LLM with source tags
+    rag_context_parts = []
+    for doc in relevant_docs:
+        page_num = doc.metadata.get('page_number', 'N/A')
+        rag_context_parts.append(f'<source page="{page_num}">\n{doc.page_content}\n</source>')
+    rag_context = "\n\n".join(rag_context_parts)
+
+    full_ai_response_content = ""
 
     async def response_stream_generator():
         nonlocal full_ai_response_content
 
-        # Send sources first
         sources_payload = json.dumps({"type": "sources", "sources": source_list})
         yield f'data: {sources_payload}\n\n'
 
-        # Then stream the AI response
         async for chunk_data in stream_ai_response(
             message=message.message,
             pdf_context=rag_context,
@@ -155,19 +156,19 @@ async def chat_endpoint(message: ChatMessage):
                     if json_payload.get("type") == "content":
                         content_part = json_payload.get("content", "")
                         full_ai_response_content += content_part
+                
                 yield chunk_data
             except json.JSONDecodeError:
                 yield chunk_data
+
         if full_ai_response_content:
             assistant_message_entry = {"role": "assistant", "content": full_ai_response_content, "sources": source_list}
             CONVERSATION_HISTORY[conversation_id].append(assistant_message_entry)
             print(f"✅ AI Response saved to history for conversation_id: {conversation_id}")
         else:
             print(f"⚠️ AI Response was empty for conversation_id: {conversation_id}, not saved.")
-    return StreamingResponse(
-        response_stream_generator(),
-        media_type="text/event-stream"
-    )
+
+    return StreamingResponse(response_stream_generator(), media_type="text/event-stream")
 
 if __name__ == "__main__":
     import uvicorn

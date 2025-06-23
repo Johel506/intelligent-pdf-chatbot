@@ -92,6 +92,32 @@ This solution ensures UI remains consistent and responsive, even when users inte
 - Confirmed backend sends correct, non-duplicated chunks
 - Issue is purely visual in development and doesn't occur in production builds where `StrictMode` is inactive
 
+### Advanced Context Handling: From Truncation to RAG with Citations
+
+**Problem**: The initial solution for the OpenAI API's context length limit involved truncating the PDF content to the first 48,000 characters. This was a significant limitation, as the chatbot was unable to answer questions about any content beyond that point (e.g., beyond page 27 of the provided PDF). Furthermore, initial attempts to get the AI to cite sources were inconsistent.
+
+**Solution**: To overcome these challenges, the context handling system was completely re-architected by implementing a **Retrieval-Augmented Generation (RAG)** pipeline with a sophisticated prompting strategy.
+
+1.  **Full Document Processing with RAG**:
+    * **Chunking with Metadata**: Instead of loading the PDF as a single text block, the content is now extracted on a per-page basis, preserving the page number as metadata for each chunk.
+    * **Vector Embeddings**: At application startup, the entire document is divided into smaller chunks. Each chunk is then converted into a vector embedding using OpenAI's models and stored in an in-memory **FAISS vector database**. This process indexes the entire document for semantic searching.
+
+2.  **Dynamic Retrieval and Context Injection**:
+    * When a user sends a query, the backend converts the question into a vector and uses it to search the FAISS database for the most semantically similar document chunks.
+    * These relevant chunks, along with their page number metadata, are then formatted with clear identifiers (e.g., `<source page="X">...`) and injected into the prompt. This ensures that only the most relevant information is sent to the LLM, solving the context length limit problem permanently.
+
+3.  **High-Fidelity Prompt Engineering for Accurate Citations**:
+    * To solve the problem of inconsistent citations and factual errors, a highly specific **system prompt** was engineered.
+    * This prompt gives the LLM a clear persona and a set of **strict rules**, including:
+        * A mandate to answer *exclusively* based on the provided `<source>` tags.
+        * Explicit instructions to generate inline citations (e.g., `<sup>Page X</sup>`) immediately after presenting a piece of information.
+        * A "few-shot" example within the prompt itself, demonstrating the exact desired input/output format.
+        * A rule to explicitly state when an answer cannot be found in the provided context, preventing the use of external knowledge and reducing hallucinations.
+
+4.  **UI and State Management Refinements**:
+    * The frontend was updated to handle a new Server-Sent Event (SSE) type that delivers the list of retrieved sources.
+    * Initially, this was used to display an expandable list of all source chunks. To create a cleaner user experience, this was later removed, relying solely on the AI's inline citations and its final `Sources: ...` summary line, which are rendered directly via `ReactMarkdown`.
+
 ## 3. Future Improvements
 
 ### High Priority

@@ -3,6 +3,30 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import './MessageList.css';
 
+// Utility to extract cited pages from the AI's answer
+function extractCitedPages(content) {
+  const pageSet = new Set();
+  if (!content) return pageSet;
+  // Match [Page X] and [Page X, Page Y]
+  const inlineMatches = [...content.matchAll(/\[Page ([0-9]+)(?:, Page ([0-9]+))*\]/g)];
+  for (const match of inlineMatches) {
+    if (match[1]) pageSet.add(Number(match[1]));
+    const allPages = match[0].match(/Page ([0-9]+)/g);
+    if (allPages) {
+      allPages.forEach(p => pageSet.add(Number(p.replace('Page ', ''))));
+    }
+  }
+  // Match final Sources: Page X, Page Y
+  const sourcesLine = content.match(/Sources:\s*Page ([0-9]+(?:, Page [0-9]+)*)/);
+  if (sourcesLine && sourcesLine[1]) {
+    sourcesLine[1].split(',').forEach(p => {
+      const num = p.replace('Page ', '').trim();
+      if (num) pageSet.add(Number(num));
+    });
+  }
+  return pageSet;
+}
+
 const MessageList = ({ messages }) => {
   const listEndRef = useRef(null);
 
@@ -40,32 +64,25 @@ const MessageList = ({ messages }) => {
           </p>
         </div>
       ) : (
-        messages.map((msg, index) => (
-          <div key={index} className={`message ${msg.role}`}>
-            {msg.role === 'ai' && getAvatar(msg.role)}
-            <div className="message-container">
-              <div className="message-content">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {msg.content || "..."}
-                </ReactMarkdown>
-              </div>
-              {msg.role === 'ai' && msg.sources && msg.sources.length > 0 && (
-                <div className="sources-container">
-                  <strong>Sources:</strong>
-                  {msg.sources.map((source, i) => (
-                    <div key={i} className="source-item">
-                      <details>
-                        <summary>Page {source.page_number}</summary>
-                        <p>{source.content}</p>
-                      </details>
-                    </div>
-                  ))}
+        messages.map((msg, index) => {
+          const citedPages = msg.role === 'ai' ? extractCitedPages(msg.content) : new Set();
+          const filteredSources = msg.sources
+            ? msg.sources.filter(src => citedPages.has(Number(src.page_number)))
+            : [];
+          return (
+            <div key={index} className={`message ${msg.role}`}>
+              {msg.role === 'ai' && getAvatar(msg.role)}
+              <div className="message-container">
+                <div className="message-content">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {msg.content || "..."}
+                  </ReactMarkdown>
                 </div>
-              )}
+              </div>
+              {msg.role === 'user' && getAvatar(msg.role)}
             </div>
-            {msg.role === 'user' && getAvatar(msg.role)}
-          </div>
-        ))
+          );
+        })
       )}
       {/* This empty div is the target for our auto-scroll */}
       <div ref={listEndRef} />
