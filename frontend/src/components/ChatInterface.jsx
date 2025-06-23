@@ -1,5 +1,5 @@
 // frontend/src/components/ChatInterface.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import './ChatInterface.css';
@@ -9,6 +9,7 @@ const ChatInterface = () => {
   const [input, setInput] = useState('');
   const [conversationId, setConversationId] = useState('session-' + Date.now());
   const [isLoading, setIsLoading] = useState(false);
+  const abortControllerRef = useRef(null);
 
   const handleSendMessage = async () => {
     if (input.trim() === '' || isLoading) return;
@@ -21,6 +22,8 @@ const ChatInterface = () => {
     setInput('');
     setIsLoading(true);
 
+    abortControllerRef.current = new AbortController();
+
     try {
       const response = await fetch('http://127.0.0.1:8000/chat', {
         method: 'POST',
@@ -29,6 +32,7 @@ const ChatInterface = () => {
           message: messageToSend,
           conversation_id: conversationId,
         }),
+        signal: abortControllerRef.current.signal,
       });
 
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -78,6 +82,11 @@ const ChatInterface = () => {
         // At the end, you could try to parse what remains in buffer if it's not empty
       }
     } catch (err) {
+      if (err.name === 'AbortError') {
+        console.log('Fetch aborted by user.');
+        return; // Stop execution, state is already reset
+      }
+
       console.error("Failed to fetch stream:", err);
       // Update the last message with an error
       setMessages(prev => {
@@ -90,7 +99,13 @@ const ChatInterface = () => {
   };
 
   const handleReset = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
     setMessages([]);
+    setInput('');
+    setIsLoading(false);
     setConversationId('session-' + Date.now());
   };
 

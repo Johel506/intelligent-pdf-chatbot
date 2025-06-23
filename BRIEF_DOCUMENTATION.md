@@ -68,6 +68,21 @@ The application follows a **client-server architecture**, with a React frontend 
 - Used `python -m uvicorn ...` to leverage virtual environment's Python executable directly
 - Recommended PowerShell as integrated terminal for better native `venv` activation script compatibility
 
+### Network Request Management on Chat Reset
+
+**Problem**: A "purple background bug" (visual inconsistency) occurred when users reset the conversation while an AI response generation request (streaming) was still in progress. The network request wasn't being cancelled, and when the response (or error) arrived after the reset, it attempted to update a state that had already been cleared or modified, leading to unpredictable UI behavior.
+
+**Solution Implemented** (`frontend/src/components/ChatInterface.jsx`):
+Implemented a network request cancellation mechanism using `AbortController`, integrated into the `handleReset` function:
+
+1. **Request Cancellation**: Before clearing message history and conversation ID, the `AbortController` signal is activated to abort any active `fetch` request, ensuring in-progress requests stop and don't process late responses
+
+2. **Loading State Reset**: Immediately after cancellation, the `isLoading` state is forced to `false` to accurately reflect that the AI is no longer "thinking" from the user's perspective
+
+3. **Cancellation Handling in `fetch`**: Added specific check for `err.name === 'AbortError'` within the `try-catch` block of `handleSendMessage` function. This distinguishes intentional cancellations (user pressing "Reset") from other network errors, preventing unnecessary error messages for expected actions
+
+This solution ensures UI remains consistent and responsive, even when users interact rapidly with application controls while asynchronous operations are in progress.
+
 ### Duplicated AI Response Text in Development
 
 **Problem**: During streaming, AI response text appeared duplicated (e.g., "AccessibleAccessible travel travel") in development environment

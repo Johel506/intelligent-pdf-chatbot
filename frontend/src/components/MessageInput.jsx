@@ -20,7 +20,7 @@ const MessageInput = ({ input, setInput, handleSendMessage, disabled }) => {
     <div className="message-input-container">
       <textarea
         className="message-input"
-        placeholder={disabled ? "Waiting for response..." : "Type your message... (Shift+Enter for new line)"}
+        placeholder={disabled ? "Waiting for response..." : "Type your message..."}
         value={input}
         onChange={handleInputChange}
         onKeyDown={handleKeyDown}
