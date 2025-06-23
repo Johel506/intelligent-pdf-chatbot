@@ -32,7 +32,12 @@
   text-overflow: ellipsis;
 }
 
-.reset-button {
+.header-buttons {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.header-button {
   background-color: transparent;
   color: var(--text-secondary);
   border: 1px solid var(--border-color);
@@ -42,9 +47,12 @@
   font-weight: 500;
   font-size: 0.875rem;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5em; 
 }
 
-.reset-button:hover {
+.header-button:hover {
   background-color: var(--primary-accent);
   border-color: var(--primary-accent);
   color: var(--text-primary);
@@ -139,3 +147,16 @@
     font-size: 1.1rem; /* Slightly reduce title size on mobile */
   }
 }
+
+.export-icon {
+  width: 16px;  /* Fixed width */
+  height: 16px; /* Fixed height */
+  /* Color adjustment for dark theme */
+  filter: invert(90%) sepia(8%) saturate(93%) hue-rotate(200deg) brightness(90%) contrast(92%);
+}
+
+/* Change icon color to white on hover */
+.header-button:hover .export-icon {
+  filter: invert(100%) sepia(0%) saturate(7500%) hue-rotate(100deg) brightness(110%) contrast(100%);
+}
+

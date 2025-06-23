@@ -3,12 +3,32 @@ import React, { useState, useRef } from 'react';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import './ChatInterface.css';
+import exportIcon from '../assets/export-icon.svg';
 
 const ChatInterface = ({ conversation, setMessages, onToggleSidebar }) => {
   const { id: conversationId, messages } = conversation;
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef(null);
+
+  // Export conversation as Markdown
+  const handleExportConversation = () => {
+    const formattedContent = conversation.messages.map(msg => {
+      const prefix = msg.role === 'user' ? '**You:**' : '**AI:**';
+      // Remove <sup> tags from content
+      const cleanContent = msg.content.replace(/<\/?sup>/g, '');
+      return `${prefix}\n${cleanContent}\n\n---\n\n`;
+    }).join('');
+
+    const blob = new Blob([formattedContent], { type: 'text/markdown;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${conversation.name.replace(/ /g, '_')}_export.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+  };
 
   const handleSendMessage = async () => {
     // Do not send empty messages or if already loading
@@ -102,7 +122,17 @@ const ChatInterface = ({ conversation, setMessages, onToggleSidebar }) => {
           ☰
         </button>
         <h2>{conversation.name || 'PDF Chatbot'}</h2>
-        <button className="reset-button" onClick={handleReset}>Clear Chat</button>
+        <div className="header-buttons">
+          {/* Export button */}
+          <button className="header-button export-button" onClick={handleExportConversation} title="Export Conversation">
+            <span>Export</span>
+            <img src={exportIcon} alt="Export" className="export-icon" />           
+          </button>
+          {/* Clear Chat button */}
+          <button className="header-button reset-button" onClick={handleReset}>
+            Clear Chat
+          </button>
+        </div>
       </div>
       <MessageList messages={messages} />
       {isLoading && (

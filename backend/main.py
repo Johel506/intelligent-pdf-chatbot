@@ -1,11 +1,11 @@
 # backend/main.py
 
-# --- Step 1: Load environment variables FIRST ---
+# Step 1: Load environment variables
 from dotenv import load_dotenv
 import os
 load_dotenv()
 
-# --- Step 2: Import other libraries and services AFTER loading variables ---
+# Step 2: Import libraries and services after loading environment variables
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -13,17 +13,13 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 from contextlib import asynccontextmanager
-import json # <-- Global import for Pydantic and other uses
+import json
 
-# Now we can safely import our services
-# We are disabling this specific Pylint warning because we have a good reason
-# to load environment variables before this import.
 from services.pdf_service import extract_documents_from_pdf
 from services.ai_service import classify_intent, stream_greeting_response, stream_rag_response
 
-
-# --- Global In-Memory Storage & RAG Setup ---
-VECTOR_STORE = None # <-- We will store our vector database here
+# In-memory storage for vector database and conversation history
+VECTOR_STORE = None
 CONVERSATION_HISTORY = {}
 
 @asynccontextmanager
@@ -34,7 +30,6 @@ async def lifespan(app: FastAPI):
     """
     global VECTOR_STORE
 
-    # Imports for the RAG pipeline
     from langchain_community.vectorstores import FAISS
     from langchain_openai import OpenAIEmbeddings
     from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -49,23 +44,20 @@ async def lifespan(app: FastAPI):
     if not page_documents:
         raise RuntimeError(f"Could not load any documents from '{pdf_path}'.")
 
-    # 2. Split documents into chunks (the splitter now preserves metadata)
+    # Split documents into chunks (splitter preserves metadata)
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
     chunks = text_splitter.split_documents(page_documents)
     print(f"PDF processed into {len(chunks)} chunks.")
 
-    # 3. Create embeddings and FAISS (this works the same, FAISS stores metadata)
+    # Create embeddings and FAISS vector store
     embeddings = OpenAIEmbeddings()
     VECTOR_STORE = FAISS.from_documents(documents=chunks, embedding=embeddings)
     print("✅ FAISS vector store with metadata created successfully.")
 
-    yield  # The application runs here
+    yield
 
-    # You can add cleanup code here for when the app stops
     print("Lifespan event: shutdown")
 
-# --- FastAPI App Initialization ---
-# Pass the lifespan handler to the app
 app = FastAPI(
     title="Intelligent PDF Chatbot API",
     description="A context-aware chatbot that answers questions based on a PDF document.",
@@ -73,7 +65,6 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# --- CORS Middleware ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://localhost:5173"],
@@ -82,7 +73,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Pydantic Data Models ---
 class HealthResponse(BaseModel):
     status: str
     timestamp: str
@@ -90,15 +80,14 @@ class HealthResponse(BaseModel):
 
 class ChatMessage(BaseModel):
     message: str
-    conversation_id: Optional[str] = "default" #
+    conversation_id: Optional[str] = "default"
 
-# --- API Endpoints ---
 @app.get("/")
 async def root():
     return {"message": "PDF Chatbot API is online."}
 
 @app.get("/health", response_model=HealthResponse)
-async def health_check(): #
+async def health_check():
     """Endpoint to verify the API's status and if the PDF was loaded."""
     return HealthResponse(
         status="healthy",
@@ -109,8 +98,7 @@ async def health_check(): #
 @app.post("/chat")
 async def chat_endpoint(message: ChatMessage):
     """
-    Acts as a router. First classifies intent, then routes to the
-    appropriate handler (RAG or greeting).
+    Routes the message: classifies intent, then handles either RAG or greeting.
     """
     global CONVERSATION_HISTORY, VECTOR_STORE
     if not VECTOR_STORE:
@@ -120,16 +108,15 @@ async def chat_endpoint(message: ChatMessage):
     if conversation_id not in CONVERSATION_HISTORY:
         CONVERSATION_HISTORY[conversation_id] = []
 
-    # Add user message to history immediately
+    # Add user message to history
     user_message_entry = {"role": "user", "content": message.message}
     CONVERSATION_HISTORY[conversation_id].append(user_message_entry)
 
-    # --- INTENT ROUTER ---
+    # Intent routing
     intent = await classify_intent(message.message)
     print(f"User intent classified as: {intent}")
 
     if intent == "GREETING":
-        # Handle simple greetings
         async def greeting_generator():
             full_response = ""
             async for chunk in stream_greeting_response(CONVERSATION_HISTORY[conversation_id]):
@@ -142,27 +129,21 @@ async def chat_endpoint(message: ChatMessage):
                 except json.JSONDecodeError:
                     pass
                 yield chunk
-            
-            # Save full greeting response to history
             if full_response:
                 CONVERSATION_HISTORY[conversation_id].append({"role": "assistant", "content": full_response})
 
         return StreamingResponse(greeting_generator(), media_type="text/event-stream")
-    
-    else: # Default to "SEARCH"
-        # Handle RAG questions (your existing logic)
+    else:
+        # Handle RAG questions
         retriever = VECTOR_STORE.as_retriever(search_kwargs={"k": 4})
         relevant_docs = retriever.get_relevant_documents(message.message)
-        
         source_list = [{"page_number": doc.metadata.get('page_number', 'N/A'), "content": doc.page_content} for doc in relevant_docs]
         rag_context = "\n\n".join([f'<source page="{doc.metadata.get("page_number", "N/A")}">\n{doc.page_content}\n</source>' for doc in relevant_docs])
 
         async def rag_generator():
             full_response = ""
-            
             sources_payload = json.dumps({"type": "sources", "sources": source_list})
             yield f'data: {sources_payload}\n\n'
-
             async for chunk in stream_rag_response(message.message, rag_context, CONVERSATION_HISTORY[conversation_id]):
                 try:
                     line = chunk.strip()
@@ -173,8 +154,6 @@ async def chat_endpoint(message: ChatMessage):
                 except json.JSONDecodeError:
                     pass
                 yield chunk
-
-            # Save full RAG response to history
             if full_response:
                  CONVERSATION_HISTORY[conversation_id].append({"role": "assistant", "content": full_response, "sources": source_list})
 

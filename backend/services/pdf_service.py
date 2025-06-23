@@ -20,7 +20,7 @@ def extract_documents_from_pdf(pdf_path: str) -> list[Document]:
             for i, page in enumerate(pdf_reader.pages):
                 page_content = page.extract_text()
                 if page_content:
-                    # We create a LangChain Document with metadata
+                    # Create a LangChain Document with metadata
                     doc = Document(
                         page_content=page_content,
                         metadata={'page_number': i + 1, 'source': os.path.basename(pdf_path)}

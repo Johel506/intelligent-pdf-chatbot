@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './ConversationSidebar.css';
 
-// El componente ConversationItem no necesita cambios, tu versión es correcta.
+// The ConversationItem component does not need changes, your version is correct.
 function ConversationItem({ conversation, isActive, onSelect, onTogglePin, onRename, onDelete, isDeletable }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -101,8 +101,7 @@ function ConversationItem({ conversation, isActive, onSelect, onTogglePin, onRen
   );
 }
 
-
-// --- COMPONENTE PRINCIPAL CON LA ESTRUCTURA CORRECTA ---
+// --- MAIN COMPONENT WITH THE CORRECT STRUCTURE ---
 const ConversationSidebar = ({
   conversations,
   activeConversationId,
@@ -117,7 +116,7 @@ const ConversationSidebar = ({
   return (
     <div className="sidebar">
       <div className="sidebar-header">
-        {/* Este contenedor alinea el título y el botón de cierre */}
+        {/* This container aligns the title and the close button */}
         <div className="sidebar-title-container">
           <h3>Conversations</h3>
           <button className="sidebar-close-button" onClick={onToggleSidebar}>
@@ -125,7 +124,7 @@ const ConversationSidebar = ({
           </button>
         </div>
         
-        {/* El botón de nuevo chat va después, en su propia línea */}
+        {/* The new chat button goes next, on its own line */}
         <button 
           className="new-chat-button" 
           onClick={onNewChat}

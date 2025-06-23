@@ -16,7 +16,7 @@ function App() {
   });
   const abortControllerRef = useRef(null);
 
-  // Effect to create a default conversation on first load
+  // Create a default conversation on first load
   useEffect(() => {
     if (conversations.length === 0) {
       handleNewChat();
@@ -25,28 +25,28 @@ function App() {
   }, []);
 
   const handleNewChat = () => {
-    // --- LÓGICA MEJORADA PARA ENCONTRAR EL NOMBRE CORRECTO ---
+    // --- IMPROVED LOGIC TO FIND THE CORRECT NAME ---
     const existingChatNumbers = conversations
       .map(conv => {
-        // Usamos una expresión regular para encontrar el número en "Chat X"
+        // Use a regular expression to find the number in "Chat X"
         const match = conv.name.match(/^Chat (\d+)$/);
         return match ? parseInt(match[1], 10) : 0;
       })
-      .filter(num => num > 0); // Filtramos los que no coincidan
+      .filter(num => num > 0); // Filter out non-matching
 
     let nextChatNumber = 1;
-    // Buscamos el primer número que no esté en uso
+    // Find the first number not in use
     while (existingChatNumbers.includes(nextChatNumber)) {
       nextChatNumber++;
     }
     const newName = `Chat ${nextChatNumber}`;
-    // --- FIN DE LA LÓGICA MEJORADA ---
+    // --- END IMPROVED LOGIC ---
 
     const newConversation = {
       id: 'session-' + Date.now(),
-      name: newName, // Usamos el nuevo nombre calculado
+      name: newName, // Use the calculated new name
       messages: [],
-      isPinned: false, // Asegúrate de inicializar todas las propiedades
+      isPinned: false, // Make sure to initialize all properties
     };
 
     setConversations(prev => [...prev, newConversation]);
@@ -106,7 +106,7 @@ function App() {
   const activeConversation = conversations.find(c => c.id === activeConversationId);
   const isNewChatDisabled = conversations.some(conv => conv.messages.length === 0);
 
-  // Set messages
+  // Set messages for the active conversation
   const handleSetMessages = (newMessages) => {
     setConversations(prev => 
       prev.map(conv => 
@@ -142,9 +142,7 @@ function App() {
         onToggleSidebar={handleToggleSidebar}
         isNewChatDisabled={isNewChatDisabled}
       />
-      {/* --- Add the sidebar overlay --- */}
       <div className="sidebar-overlay" onClick={handleToggleSidebar}></div>
-      {/* --- End overlay --- */}
       {activeConversation ? (
         <ChatInterface
           key={activeConversation.id}
@@ -161,7 +159,6 @@ function App() {
           <p>Select a conversation or start a new one.</p>
         </div>
       )}
-      {/* Render the confirmation modal */}
       <ConfirmationModal
         isOpen={modalState.isOpen}
         message={modalState.message}

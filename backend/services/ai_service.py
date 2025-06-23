@@ -30,7 +30,7 @@ async def classify_intent(message: str) -> str:
         return intent if intent in ["GREETING", "SEARCH"] else "SEARCH"
     except Exception as e:
         print(f"Error classifying intent: {e}")
-        return "SEARCH" # Default to search if classification fails
+        return "SEARCH"  # Default to SEARCH if classification fails
 
 async def stream_greeting_response(conversation_history: list):
     """
@@ -65,7 +65,6 @@ async def stream_greeting_response(conversation_history: list):
 async def stream_rag_response(message: str, pdf_context: str, conversation_history: list):
     """
     Generates a RAG response with citations, based on provided context.
-    (This is your previous, highly-tuned prompt)
     """
     if not client:
         yield 'data: {"type": "error", "content": "OpenAI client is not initialized."}\n\n'
