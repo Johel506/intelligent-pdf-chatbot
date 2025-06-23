@@ -94,13 +94,13 @@ intelligent-pdf-chatbot/
 │   ├── assets/                 # Directory for PDF documents
 │   └── requirements.txt        # Python dependencies
 └── frontend/
-├── src/
-│   ├── components/         # React components
-│   ├── context/            # React context for i18n
-│   ├── locales/            # JSON files for translations
-│   └── assets/             # SVG icons and other assets
-├── public/                 # Static assets (e.g., favicon)
-└── ...                     # Config files (package.json, etc.)
+    ├── src/
+    │   ├── components/         # React components
+    │   ├── context/            # React context for i18n
+    │   ├── locales/            # JSON files for translations
+    │   └── assets/             # SVG icons and other assets
+    ├── public/                 # Static assets (e.g., favicon)
+    └── ...                     # Config files (package.json, etc.)
 
 
 ---
