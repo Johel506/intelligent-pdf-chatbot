@@ -10,9 +10,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import Optional
 from datetime import datetime
 import json
+from contextlib import asynccontextmanager  # Import this for lifespan
 
 # Now we can safely import our services
 # We are disabling this specific Pylint warning because we have a good reason
@@ -21,15 +22,55 @@ from services.pdf_service import extract_text_from_pdf
 from services.ai_service import stream_ai_response  # pylint: disable=C0413
 
 
-# --- Global In-Memory Storage ---
-# PDF_CONTEXT = "" <-- We no longer need this
+# --- Global In-Memory Storage & RAG Setup ---
 VECTOR_STORE = None # <-- We will store our vector database here
 CONVERSATION_HISTORY = {}
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Handles startup logic: Loads the PDF, creates chunks, embeddings,
+    and the FAISS vector store.
+    """
+    global VECTOR_STORE
+
+    # Imports for the RAG pipeline
+    from langchain_community.vectorstores import FAISS
+    from langchain_openai import OpenAIEmbeddings
+    from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+    print("Lifespan event: startup")
+    pdf_path = os.getenv("PDF_PATH")
+    if not pdf_path:
+        raise RuntimeError("PDF_PATH environment variable not set.")
+
+    print("Loading PDF for RAG pipeline...")
+    pdf_text = extract_text_from_pdf(pdf_path)
+    if not pdf_text:
+        raise RuntimeError(f"Could not load PDF context from '{pdf_path}'.")
+
+    # Split text into chunks
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+    chunks = text_splitter.split_text(pdf_text)
+    print(f"PDF split into {len(chunks)} chunks.")
+
+    # Create embeddings and the vector database
+    embeddings = OpenAIEmbeddings()
+    VECTOR_STORE = FAISS.from_texts(texts=chunks, embedding=embeddings)
+    print("✅ FAISS vector store created successfully.")
+
+    yield  # The application runs here
+
+    # You can add cleanup code here for when the app stops
+    print("Lifespan event: shutdown")
+
+# --- FastAPI App Initialization ---
+# Pass the lifespan handler to the app
 app = FastAPI(
     title="Intelligent PDF Chatbot API",
     description="A context-aware chatbot that answers questions based on a PDF document.",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # --- CORS Middleware ---
@@ -40,34 +81,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-@app.on_event("startup")
-def startup_event():
-    """
-    Loads the PDF, splits it into chunks, creates embeddings, and stores them
-    in an in-memory FAISS vector database.
-    """
-    global VECTOR_STORE
-    from langchain_community.vectorstores import FAISS
-    from langchain_openai import OpenAIEmbeddings
-    from langchain.text_splitter import RecursiveCharacterTextSplitter
-    pdf_path = os.getenv("PDF_PATH")
-    if not pdf_path:
-        raise RuntimeError("PDF_PATH environment variable not set.")
-    print("Loading PDF for RAG pipeline...")
-    pdf_text = extract_text_from_pdf(pdf_path)
-    if not pdf_text:
-        raise RuntimeError(f"Could not load PDF context from '{pdf_path}'.")
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=100
-    )
-    chunks = text_splitter.split_text(pdf_text)
-    print(f"PDF split into {len(chunks)} chunks.")
-    embeddings = OpenAIEmbeddings()
-    VECTOR_STORE = FAISS.from_texts(texts=chunks, embedding=embeddings)
-    print("✅ FAISS vector store created successfully.")
-
 
 # --- Pydantic Data Models ---
 class HealthResponse(BaseModel):
