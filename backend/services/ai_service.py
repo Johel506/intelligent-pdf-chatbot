@@ -1,7 +1,7 @@
 # backend/services/ai_service.py
 import os
 import openai
-import json # <-- ¡Asegúrate de importar json!
+import json # <-- Make sure to import json!
 
 try:
     client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -14,7 +14,7 @@ async def stream_ai_response(message: str, pdf_context: str, conversation_histor
    Generates a response from the OpenAI API and streams it in parts using yield for SSE (Server-Sent Events).
     """
     if not client:
-        # Asegúrate de que los mensajes de error también sean JSON válido
+        # Make sure that error messages are also valid JSON
         yield 'data: {"type": "error", "content": "OpenAI client is not initialized."}\n\n'
         return
 
@@ -56,10 +56,10 @@ async def stream_ai_response(message: str, pdf_context: str, conversation_histor
             if hasattr(chunk.choices[0].delta, "content"):
                 content = chunk.choices[0].delta.content
                 if content:
-                    # **Línea corregida:** Serializa el diccionario a un string JSON
+                    # **Corrected line:** Serialize the dictionary to a JSON string
                     yield f'data: {json.dumps({"type": "content", "content": content})}\n\n'
         
-        # Indica al frontend que terminó
+        # Indicate to the frontend that it's finished
         yield 'data: {"type": "done"}\n\n'
 
     except openai.APIError as e:

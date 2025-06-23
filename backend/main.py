@@ -50,13 +50,13 @@ def startup_event():
     pdf_path = os.getenv("PDF_PATH")
     if not pdf_path:
         print("❌ CRITICAL ERROR: PDF_PATH environment variable not set. Application cannot start.")
-        # Lanza una excepción para detener el inicio del servidor
+        # Raises an exception to stop the server startup
         raise RuntimeError("PDF_PATH environment variable not set.")
     
     PDF_CONTEXT = extract_text_from_pdf(pdf_path)
     if not PDF_CONTEXT:
         print(f"❌ CRITICAL ERROR: Could not load PDF context from '{pdf_path}'. Application cannot start.")
-        # Lanza una excepción para detener el inicio del servidor
+        # Raises an exception to stop the server startup
         raise RuntimeError(f"Could not load PDF context from '{pdf_path}'.")
     else:
         print("✅ PDF loaded and text extracted successfully during startup.")
@@ -104,26 +104,26 @@ async def chat_endpoint(message: ChatMessage):
     if conversation_id not in CONVERSATION_HISTORY:
         CONVERSATION_HISTORY[conversation_id] = []
 
-    # 1. Añadir el mensaje del usuario al historial
+    # 1. Add the user message to the history
     user_message_entry = {"role": "user", "content": message.message}
     CONVERSATION_HISTORY[conversation_id].append(user_message_entry)
 
-    # Variable para acumular la respuesta completa del asistente
+    # Variable to accumulate the complete assistant response
     full_ai_response_content = ""
 
-    # Función generadora asíncrona para procesar el stream
+    # Async generator function to process the stream
     async def response_stream_generator():
-        nonlocal full_ai_response_content # Permite modificar la variable externa
+        nonlocal full_ai_response_content # Allows modifying the external variable
 
-        # Llamar a stream_ai_response para obtener los chunks
-        # Nota: stream_ai_response en services/ai_service.py devuelve `data: JSON_STRING\n\n`
+        # Call stream_ai_response to get the chunks
+        # Note: stream_ai_response in services/ai_service.py returns `data: JSON_STRING\n\n`
         async for chunk_data in stream_ai_response(
             message=message.message,
             pdf_context=PDF_CONTEXT,
-            conversation_history=CONVERSATION_HISTORY[conversation_id] # Pasa el historial actual
+            conversation_history=CONVERSATION_HISTORY[conversation_id] # Pass the current history
         ):
-            # Parsear el chunk para extraer el contenido real
-            # Esto asume el formato 'data: {"type": "content", "content": "..."}\n\n'
+            # Parse the chunk to extract the real content
+            # This assumes the format 'data: {"type": "content", "content": "..."}\n\n'
             try:
                 line = chunk_data.strip()
                 if line.startswith("data: "):
@@ -132,27 +132,27 @@ async def chat_endpoint(message: ChatMessage):
                         content_part = json_payload.get("content", "")
                         full_ai_response_content += content_part
                 
-                # Cuidado: Si el cliente espera `data: ...` y tú solo envías `content`,
-                # el frontend podría necesitar ajustarse. Asumimos que el frontend
-                # espera el mismo formato de `chunk_data` que `ai_service.py` genera.
-                yield chunk_data # Reenviar el chunk al cliente inmediatamente
+                # Careful: If the client expects `data: ...` and you only send `content`,
+                # the frontend might need to be adjusted. We assume the frontend
+                # expects the same format of `chunk_data` that `ai_service.py` generates.
+                yield chunk_data # Forward the chunk to the client immediately
             except json.JSONDecodeError:
-                # Manejar chunks que no son JSON válidos (ej. el chunk 'done')
-                yield chunk_data # Aún se envía para no romper el stream del cliente
+                # Handle chunks that are not valid JSON (e.g. the 'done' chunk)
+                yield chunk_data # Still sent to avoid breaking the client stream
 
-        # 3. Después de que el generador termine (todo el stream ha sido procesado),
-        # guardar la respuesta completa del asistente en el historial.
-        # Esto sucede DESPUÉS de que todos los 'yield' se han ejecutado.
-        if full_ai_response_content: # Asegurarse de que haya contenido para guardar
+        # 3. After the generator ends (all stream has been processed),
+        # save the complete assistant response to the history.
+        # This happens AFTER all 'yield' statements have been executed.
+        if full_ai_response_content: # Make sure there's content to save
             assistant_message_entry = {"role": "assistant", "content": full_ai_response_content}
             CONVERSATION_HISTORY[conversation_id].append(assistant_message_entry)
             print(f"✅ AI Response saved to history for conversation_id: {conversation_id}")
-            # print(f"Current history for {conversation_id}: {CONVERSATION_HISTORY[conversation_id]}") # Para depuración
+            # print(f"Current history for {conversation_id}: {CONVERSATION_HISTORY[conversation_id]}") # For debugging
         else:
             print(f"⚠️ AI Response was empty for conversation_id: {conversation_id}, not saved.")
 
-    # Retornar el StreamingResponse que usa nuestro nuevo generador
+    # Return the StreamingResponse that uses our new generator
     return StreamingResponse(
-        response_stream_generator(), # Usamos nuestra nueva función generadora
+        response_stream_generator(), # We use our new generator function
         media_type="text/event-stream"
     )

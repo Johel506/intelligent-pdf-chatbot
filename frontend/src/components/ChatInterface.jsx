@@ -46,14 +46,14 @@ const ChatInterface = () => {
 
         buffer += decoder.decode(value, { stream: true });
 
-        // Procesa cada línea completa
+        // Process each complete line
         let lines = buffer.split('\n');
-        buffer = lines.pop(); // La última línea puede estar incompleta
+        buffer = lines.pop(); // The last line may be incomplete
 
         for (let line of lines) {
           line = line.trim();
           if (!line) continue;
-          // Si tu backend manda 'data: {...}', quita el prefijo:
+          // If your backend sends 'data: {...}', remove the prefix:
           if (line.startsWith('data: ')) line = line.slice(6);
           try {
             const data = JSON.parse(line);
@@ -75,7 +75,7 @@ const ChatInterface = () => {
             console.error("Failed to parse stream data chunk:", line);
           }
         }
-        // Al final, podrías intentar parsear lo que quede en buffer si no está vacío
+        // At the end, you could try to parse what remains in buffer if it's not empty
       }
     } catch (err) {
       console.error("Failed to fetch stream:", err);

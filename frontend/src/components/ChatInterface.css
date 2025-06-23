@@ -39,7 +39,7 @@
 .reset-button:hover {
   background-color: #c82333;
 }
-/* Añade esto al final de frontend/src/components/ChatInterface.css */
+/* Add this at the end of frontend/src/components/ChatInterface.css */
 .loading-indicator {
   padding: 0.5rem;
   text-align: center;
