@@ -156,3 +156,7 @@ async def chat_endpoint(message: ChatMessage):
         response_stream_generator(), # We use our new generator function
         media_type="text/event-stream"
     )
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
