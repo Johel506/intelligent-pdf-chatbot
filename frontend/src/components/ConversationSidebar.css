@@ -1,29 +1,36 @@
 /* frontend/src/components/ConversationSidebar.css */
 .sidebar {
   width: 260px;
-  background-color: var(--bg-secondary);
-  border-right: 1px solid var(--border-light);
+  background-color: var(--sidebar-bg);
+  border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  overflow: visible;
 }
 
 .sidebar-header {
   padding: var(--space-lg);
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* --- ESTILOS PARA EL NUEVO CONTENEDOR DEL TÍTULO --- */
+.sidebar-title-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-md);
 }
 
 .sidebar-header h3 {
-  margin: 0 0 var(--space-md) 0;
-  color: var(--text-secondary);
+  margin: 0;
+  color: var(--text-primary);
 }
 
 .new-chat-button {
   width: 100%;
   padding: var(--space-sm) var(--space-md);
-  background-color: var(--primary-color);
-  color: var(--text-white);
+  background-color: var(--primary-accent);
+  color: var(--text-primary);
   border: none;
   border-radius: var(--radius-md);
   font-weight: 600;
@@ -32,13 +39,18 @@
 }
 
 .new-chat-button:hover {
-  background-color: var(--primary-hover);
+  background-color: var(--primary-accent-hover);
+}
+
+.new-chat-button:disabled {
+  background-color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .conversation-list {
   flex-grow: 1;
   overflow-y: auto;
-  overflow-x: visible;
   padding: var(--space-sm);
 }
 
@@ -52,16 +64,21 @@
   display: flex;
   align-items: center;
   gap: 0.5em;
+  transition: background-color 0.2s ease;
 }
 
 .conversation-item:hover {
-  background-color: var(--bg-tertiary);
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
 .conversation-item.active {
-  background-color: var(--primary-color);
-  color: var(--text-white);
+  background-color: var(--primary-accent);
+  color: var(--text-primary);
   font-weight: 500;
+}
+
+.conversation-item.active:hover {
+  background-color: var(--primary-accent-hover);
 }
 
 .conversation-name {
@@ -71,20 +88,17 @@
   flex-grow: 1; 
 }
 
-/* Pin icon next to conversation name */
 .pin-icon {
   margin-right: 0.3em;
-  color: var(--accent-color);
   font-size: 1em;
   vertical-align: middle;
 }
 
-/* Kebab menu icon (three dots) */
 .kebab-menu-icon {
   display: inline-block;
   margin-left: auto;
   padding: 0 0.5em;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-size: 1.2em;
   cursor: pointer;
   opacity: 0;
@@ -95,16 +109,55 @@
 .conversation-item:hover .kebab-menu-icon,
 .conversation-item.active .kebab-menu-icon {
   opacity: 1;
+  color: var(--text-primary);
 }
 
-/* Context menu styles */
+/* --- ESTILOS SIMPLIFICADOS PARA EL BOTÓN DE CIERRE --- */
+.sidebar-close-button {
+  display: none; /* Oculto en escritorio */
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 2rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.sidebar-close-button:hover {
+  color: var(--text-primary);
+}
+
+/* --- MEDIA QUERY --- */
+@media (max-width: 768px) {
+  .sidebar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: 100%;
+    z-index: 20;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
+  }
+
+  .app-container.sidebar-open .sidebar {
+    transform: translateX(0);
+  }
+
+  .sidebar-close-button {
+    display: block; /* Visible en móvil */
+  }
+}
+
+/* --- ESTILOS PARA EL MENÚ CONTEXTUAL Y RENOMBRADO (SIN CAMBIOS) --- */
 .context-menu {
   position: absolute;
   right: 1.5em;
   top: 2.2em;
   min-width: 120px;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-light);
+  background: var(--bg-primary); /* Asegúrate que tus variables globales tengan este color */
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
   z-index: 10;
@@ -127,25 +180,25 @@
   color: var(--text-primary);
   font-size: 1em;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background-color 0.15s;
 }
 .context-menu-item:hover {
-  background: var(--bg-tertiary);
+  background-color: rgba(255, 255, 255, 0.05);
 }
 .context-menu-item.delete {
-  color: var(--danger-color);
+  color: #ff5b5b;
 }
 .context-menu-item.delete:hover {
-  background: var(--danger-hover);
-  color: var(--text-white);
+  background: #ff5b5b;
+  color: #fff;
 }
 
-/* Inline rename input */
 .rename-input {
   font-size: 1em;
   padding: 0.2em 0.4em;
-  border: 1px solid var(--border-medium);
+  background-color: #fff;
+  color: #000;
+  border: 1px solid var(--primary-accent);
   border-radius: var(--radius-sm);
   width: 80%;
-  margin-left: 0.2em;
-} 
+}

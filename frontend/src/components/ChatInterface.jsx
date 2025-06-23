@@ -4,7 +4,7 @@ import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import './ChatInterface.css';
 
-const ChatInterface = ({ conversation, setMessages }) => {
+const ChatInterface = ({ conversation, setMessages, onToggleSidebar }) => {
   const { id: conversationId, messages } = conversation;
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -98,7 +98,10 @@ const ChatInterface = ({ conversation, setMessages }) => {
   return (
     <div className="chat-container">
       <div className="chat-header">
-        <h2>PDF Chatbot</h2>
+        <button className="hamburger-menu" onClick={onToggleSidebar}>
+          ☰
+        </button>
+        <h2>{conversation.name || 'PDF Chatbot'}</h2>
         <button className="reset-button" onClick={handleReset}>Clear Chat</button>
       </div>
       <MessageList messages={messages} />

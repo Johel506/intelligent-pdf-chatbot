@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ChatInterface from './components/ChatInterface';
 import ConversationSidebar from './components/ConversationSidebar';
 import './App.css';
@@ -6,6 +6,8 @@ import './App.css';
 function App() {
   const [conversations, setConversations] = useState([]);
   const [activeConversationId, setActiveConversationId] = useState(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Sidebar open state for mobile
+  const abortControllerRef = useRef(null);
 
   // Effect to create a default conversation on first load
   useEffect(() => {
@@ -16,13 +18,30 @@ function App() {
   }, []);
 
   const handleNewChat = () => {
-    const nextNumber = conversations.length + 1;
+    // --- LÓGICA MEJORADA PARA ENCONTRAR EL NOMBRE CORRECTO ---
+    const existingChatNumbers = conversations
+      .map(conv => {
+        // Usamos una expresión regular para encontrar el número en "Chat X"
+        const match = conv.name.match(/^Chat (\d+)$/);
+        return match ? parseInt(match[1], 10) : 0;
+      })
+      .filter(num => num > 0); // Filtramos los que no coincidan
+
+    let nextChatNumber = 1;
+    // Buscamos el primer número que no esté en uso
+    while (existingChatNumbers.includes(nextChatNumber)) {
+      nextChatNumber++;
+    }
+    const newName = `Chat ${nextChatNumber}`;
+    // --- FIN DE LA LÓGICA MEJORADA ---
+
     const newConversation = {
       id: 'session-' + Date.now(),
-      name: `Chat ${nextNumber}`,
+      name: newName, // Usamos el nuevo nombre calculado
       messages: [],
-      isPinned: false,
+      isPinned: false, // Asegúrate de inicializar todas las propiedades
     };
+
     setConversations(prev => [...prev, newConversation]);
     setActiveConversationId(newConversation.id);
   };
@@ -67,9 +86,10 @@ function App() {
     return b.isPinned - a.isPinned;
   });
 
-  // Find the currently active conversation object
   const activeConversation = conversations.find(c => c.id === activeConversationId);
+  const isNewChatDisabled = conversations.some(conv => conv.messages.length === 0);
 
+  // Set messages
   const handleSetMessages = (newMessages) => {
     setConversations(prev => 
       prev.map(conv => 
@@ -80,25 +100,46 @@ function App() {
     );
   };
 
+  // Toggle sidebar open/close (for mobile)
+  const handleToggleSidebar = () => {
+    setIsSidebarOpen(prev => !prev);
+  };
+
   return (
-    <div className="app-container">
+    // Add conditional class for sidebar open
+    <div className={`app-container ${isSidebarOpen ? 'sidebar-open' : ''}`}>
       <ConversationSidebar
         conversations={sortedConversations}
         activeConversationId={activeConversationId}
-        onNewChat={handleNewChat}
-        onSelectConversation={handleSelectConversation}
+        onNewChat={() => {
+          handleNewChat();
+          setIsSidebarOpen(false); // Close sidebar when creating new chat
+        }}
+        onSelectConversation={(id) => {
+          handleSelectConversation(id);
+          setIsSidebarOpen(false); // Close sidebar on select
+        }}
         onTogglePin={handleTogglePin}
         onRenameConversation={handleRenameConversation}
         onDeleteConversation={handleDeleteConversation}
+        onToggleSidebar={handleToggleSidebar}
+        isNewChatDisabled={isNewChatDisabled}
       />
+      {/* --- Add the sidebar overlay --- */}
+      <div className="sidebar-overlay" onClick={handleToggleSidebar}></div>
+      {/* --- End overlay --- */}
       {activeConversation ? (
         <ChatInterface
-          key={activeConversation.id} // Important for React to re-mount the component
+          key={activeConversation.id}
           conversation={activeConversation}
           setMessages={handleSetMessages}
+          onToggleSidebar={handleToggleSidebar}
         />
       ) : (
         <div className="no-chat-selected">
+          <button className="hamburger-menu" onClick={handleToggleSidebar}>
+            ☰
+          </button>
           <h2>Welcome</h2>
           <p>Select a conversation or start a new one.</p>
         </div>

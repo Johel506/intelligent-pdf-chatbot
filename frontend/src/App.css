@@ -1,40 +1,32 @@
 :root {
-  /* Color palette - modern and warm */
-  --primary-color: #3b82f6;
-  --primary-hover: #2563eb;
-  --secondary-color: #64748b;
-  --accent-color: #f59e0b;
-  --danger-color: #ef4444;
-  --danger-hover: #dc2626;
+  /* --- NEW DARK/PURPLE COLOR PALETTE --- */
+  --bg-gradient-start: #2D2A54;
+  --bg-gradient-end: #1D1B36;
   
-  /* Background colors */
-  --bg-primary: #ffffff;
-  --bg-secondary: #f8fafc;
-  --bg-tertiary: #f1f5f9;
+  --primary-container-bg: rgba(29, 27, 54, 0.5); /* A semi-transparent dark background */
+  --sidebar-bg: #1E1C3A;
   
-  /* Text colors */
-  --text-primary: #1e293b;
-  --text-secondary: #64748b;
-  --text-muted: #94a3b8;
-  --text-white: #ffffff;
+  --primary-accent: #7B61FF; /* Purple for buttons and accents */
+  --primary-accent-hover: #6a50e0;
+
+  --text-primary: #F0F0F0;   /* Main text (off-white) */
+  --text-secondary: #A0A0B0; /* Secondary text (light gray) */
+  --text-muted: #6C6C8A;     /* Muted/placeholder text */
+
+  --border-color: rgba(123, 97, 255, 0.2); /* Border with purple accent */
   
-  /* Border colors */
-  --border-light: #e2e8f0;
-  --border-medium: #cbd5e1;
+  /* Shadows and radii remain, adjust if needed */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.15);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.2), 0 2px 4px -2px rgb(0 0 0 / 0.2);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.25), 0 4px 6px -4px rgb(0 0 0 / 0.25);
   
-  /* Shadows */
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  
-  /* Border radius */
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
   --radius-2xl: 1.5rem;
   
-  /* Spacing */
+  /* Spacing remains the same */
   --space-xs: 0.25rem;
   --space-sm: 0.5rem;
   --space-md: 1rem;
@@ -53,20 +45,46 @@ body {
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   font-size: 16px;
   line-height: 1.6;
-  color: var(--text-primary);
-  background-color: var(--bg-secondary);
+  color: var(--text-primary); /* <-- Default text color */
+  background-color: var(--bg-gradient-end); /* <-- Base background color */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* --- MAIN CONTAINER STYLES --- */
 #root {
   width: 100%;
   height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  /* Apply the new gradient background */
+  background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
   padding: var(--space-md);
+}
+
+.app-container {
+  display: flex;
+  width: 100%;
+  height: 100%; /* Fill all #root space */
+  max-width: 1200px;
+  max-height: 95vh;
+  /* Make the main container transparent to show the #root gradient */
+  background-color: transparent;
+  border-radius: var(--radius-2xl);
+  box-shadow: none; /* Remove old shadows and borders */
+  border: none;
+  overflow: hidden;
+}
+
+.no-chat-selected {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  color: var(--text-secondary);
 }
 
 /* Responsive adjustments */
@@ -78,27 +96,35 @@ body {
   body {
     font-size: 14px;
   }
+
+  .app-container {
+    max-height: 100vh; /* Take full height on mobile */
+    border-radius: 0;
+  }
 }
 
-.app-container {
-  display: flex;
-  width: 100%;
-  height: 100vh;
-  max-width: 1200px; /* Increased max width */
-  max-height: 95vh;
-  background-color: var(--bg-primary);
-  border-radius: var(--radius-2xl);
-  box-shadow: var(--shadow-lg);
-  overflow: hidden;
-  border: 1px solid var(--border-light);
+/* Styles for the overlay that closes the sidebar */
+.sidebar-overlay {
+  display: none; /* Hidden by default on desktop */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5); /* Dark semi-transparent background */
+  z-index: 15; /* Below sidebar (z-index: 20) but above chat */
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
 }
 
-.no-chat-selected {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  width: 100%;
-  color: var(--text-muted);
+@media (max-width: 768px) {
+  .app-container {
+    max-height: 100vh;
+    border-radius: 0;
+  }
+  /* Show the overlay when sidebar is open on mobile */
+  .app-container.sidebar-open .sidebar-overlay {
+    display: block;
+    opacity: 1;
+  }
 }

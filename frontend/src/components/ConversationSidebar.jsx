@@ -1,6 +1,9 @@
+// frontend/src/components/ConversationSidebar.jsx
+
 import React, { useState, useRef, useEffect } from 'react';
 import './ConversationSidebar.css';
 
+// El componente ConversationItem no necesita cambios, tu versión es correcta.
 function ConversationItem({ conversation, isActive, onSelect, onTogglePin, onRename, onDelete }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -96,6 +99,8 @@ function ConversationItem({ conversation, isActive, onSelect, onTogglePin, onRen
   );
 }
 
+
+// --- COMPONENTE PRINCIPAL CON LA ESTRUCTURA CORRECTA ---
 const ConversationSidebar = ({
   conversations,
   activeConversationId,
@@ -103,16 +108,31 @@ const ConversationSidebar = ({
   onSelectConversation,
   onTogglePin,
   onRenameConversation,
-  onDeleteConversation
+  onDeleteConversation,
+  onToggleSidebar,
+  isNewChatDisabled
 }) => {
   return (
     <div className="sidebar">
       <div className="sidebar-header">
-        <h3>Conversations</h3>
-        <button className="new-chat-button" onClick={onNewChat}>
+        {/* Este contenedor alinea el título y el botón de cierre */}
+        <div className="sidebar-title-container">
+          <h3>Conversations</h3>
+          <button className="sidebar-close-button" onClick={onToggleSidebar}>
+            &times;
+          </button>
+        </div>
+        
+        {/* El botón de nuevo chat va después, en su propia línea */}
+        <button 
+          className="new-chat-button" 
+          onClick={onNewChat}
+          disabled={isNewChatDisabled}
+        >
           + New Chat
         </button>
       </div>
+
       <div className="conversation-list">
         {conversations.map((conv) => (
           <ConversationItem
@@ -130,4 +150,4 @@ const ConversationSidebar = ({
   );
 };
 
-export default ConversationSidebar; 
+export default ConversationSidebar;
