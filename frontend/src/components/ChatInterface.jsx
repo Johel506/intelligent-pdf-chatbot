@@ -101,7 +101,16 @@ const ChatInterface = () => {
         <button className="reset-button" onClick={handleReset}>Reset</button>
       </div>
       <MessageList messages={messages} />
-      {isLoading && <div className="loading-indicator">AI is typing...</div>}
+      {isLoading && (
+        <div className="loading-indicator">
+          <span>AI is typing</span>
+          <div className="typing-dots">
+            <div className="typing-dot"></div>
+            <div className="typing-dot"></div>
+            <div className="typing-dot"></div>
+          </div>
+        </div>
+      )}
       <MessageInput 
         input={input}
         setInput={setInput}
