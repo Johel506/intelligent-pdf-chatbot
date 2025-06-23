@@ -1,137 +1,111 @@
 // frontend/src/components/ChatInterface.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import './ChatInterface.css';
 
-const ChatInterface = () => {
-  const [messages, setMessages] = useState([]);
+const ChatInterface = ({ conversation, setMessages }) => {
+  const { id: conversationId, messages } = conversation;
   const [input, setInput] = useState('');
-  const [conversationId, setConversationId] = useState('session-' + Date.now());
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef(null);
 
   const handleSendMessage = async () => {
+    // Do not send empty messages or if already loading
     if (input.trim() === '' || isLoading) return;
 
     const userMessage = { role: 'user', content: input };
-    // When adding the AI placeholder, initialize its sources array
     const aiPlaceholder = { role: 'ai', content: '', sources: [] };
-    setMessages(prev => [...prev, userMessage, aiPlaceholder]);
-    
+    setMessages([...messages, userMessage, aiPlaceholder]);
+
     const messageToSend = input;
     setInput('');
     setIsLoading(true);
-
     abortControllerRef.current = new AbortController();
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: messageToSend,
-          conversation_id: conversationId,
-        }),
-        signal: abortControllerRef.current.signal,
-      });
+        const response = await fetch('http://127.0.0.1:8000/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                message: messageToSend,
+                conversation_id: conversationId,
+            }),
+            signal: abortControllerRef.current.signal,
+        });
 
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) {
-          setIsLoading(false);
-          break;
-        }
+        let currentMessages = [...messages, userMessage, { role: 'ai', content: '', sources: [] }];
 
-        buffer += decoder.decode(value, { stream: true });
-
-        // Process each complete line
-        let lines = buffer.split('\n');
-        buffer = lines.pop(); // The last line may be incomplete
-
-        for (let line of lines) {
-          line = line.trim();
-          if (!line) continue;
-          // If your backend sends 'data: {...}', remove the prefix:
-          if (line.startsWith('data: ')) line = line.slice(6);
-          try {
-            const data = JSON.parse(line);
-            // --- DIAGNOSTIC LOG ---
-            console.log('Received stream data:', data); 
-
-            if (data.type === 'sources') { // <-- NEW HANDLER
-              setMessages(prev => {
-                const newMessages = [...prev];
-                const lastMessage = newMessages[newMessages.length - 1];
-                lastMessage.sources = data.sources; // Store the sources
-                return newMessages;
-              });
-            } else if (data.type === 'content') {
-              setMessages(prev => {
-                const newMessages = [...prev];
-                const lastMessage = newMessages[newMessages.length - 1];
-                lastMessage.content += data.content;
-                return newMessages;
-              });
-            } else if (data.type === 'done') {
-              setIsLoading(false);
-              return;
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+                setIsLoading(false);
+                break;
             }
-          } catch (e) {
-            console.error("Failed to parse stream data chunk:", line);
-          }
-        }
-        // At the end, you could try to parse what remains in buffer if it's not empty
-      }
-    } catch (err) {
-      if (err.name === 'AbortError') {
-        console.log('Fetch aborted by user.');
-        return; // Stop execution, state is already reset
-      }
 
-      console.error("Failed to fetch stream:", err);
-      // Update the last message with an error
-      setMessages(prev => {
-        const newMessages = [...prev];
-        newMessages[newMessages.length - 1].content = 'Error: Could not connect to the service.';
-        return newMessages;
-      });
-      setIsLoading(false);
+            buffer += decoder.decode(value, { stream: true });
+            let lines = buffer.split('\n');
+            buffer = lines.pop();
+
+            for (let line of lines) {
+                if (!line.trim().startsWith('data:')) continue;
+                try {
+                    const data = JSON.parse(line.slice(6));
+
+                    if (data.type === 'sources') {
+                        currentMessages[currentMessages.length - 1].sources = data.sources;
+                    } else if (data.type === 'content') {
+                        currentMessages[currentMessages.length - 1].content += data.content;
+                    }
+
+                    setMessages([...currentMessages]);
+
+                } catch (e) {
+                    console.error("Failed to parse stream data chunk:", line, e);
+                }
+            }
+        }
+    } catch (err) {
+        if (err.name === 'AbortError') {
+            console.log('Fetch aborted.');
+            // Remove the placeholder message if fetch is aborted
+            setMessages(messages.slice(0, messages.length));
+            return;
+        }
+        console.error("Failed to fetch stream:", err);
+        const errorMsg = { role: 'ai', content: 'Error: Could not connect to the service.' };
+        setMessages([...messages, userMessage, errorMsg]);
+        setIsLoading(false);
     }
   };
 
   const handleReset = () => {
+    // Reset is now simply clearing the messages of the current conversation
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
-      abortControllerRef.current = null;
     }
     setMessages([]);
     setInput('');
     setIsLoading(false);
-    setConversationId('session-' + Date.now());
   };
 
   return (
     <div className="chat-container">
       <div className="chat-header">
         <h2>PDF Chatbot</h2>
-        <button className="reset-button" onClick={handleReset}>Reset</button>
+        <button className="reset-button" onClick={handleReset}>Clear Chat</button>
       </div>
       <MessageList messages={messages} />
       {isLoading && (
         <div className="loading-indicator">
           <span>AI is typing</span>
-          <div className="typing-dots">
-            <div className="typing-dot"></div>
-            <div className="typing-dot"></div>
-            <div className="typing-dot"></div>
-          </div>
+          <div className="typing-dots"></div>
         </div>
       )}
       <MessageInput 

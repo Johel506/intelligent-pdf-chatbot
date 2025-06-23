@@ -79,3 +79,26 @@ body {
     font-size: 14px;
   }
 }
+
+.app-container {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  max-width: 1200px; /* Increased max width */
+  max-height: 95vh;
+  background-color: var(--bg-primary);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+}
+
+.no-chat-selected {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  color: var(--text-muted);
+}

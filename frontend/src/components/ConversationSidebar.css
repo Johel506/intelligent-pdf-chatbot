@@ -1,0 +1,62 @@
+/* frontend/src/components/ConversationSidebar.css */
+.sidebar {
+  width: 260px;
+  background-color: var(--bg-secondary);
+  border-right: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.sidebar-header {
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.sidebar-header h3 {
+  margin: 0 0 var(--space-md) 0;
+  color: var(--text-secondary);
+}
+
+.new-chat-button {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  background-color: var(--primary-color);
+  color: var(--text-white);
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.new-chat-button:hover {
+  background-color: var(--primary-hover);
+}
+
+.conversation-list {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: var(--space-sm);
+}
+
+.conversation-item {
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  margin-bottom: var(--space-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-secondary);
+}
+
+.conversation-item:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.conversation-item.active {
+  background-color: var(--primary-color);
+  color: var(--text-white);
+  font-weight: 500;
+} 
