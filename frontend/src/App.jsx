@@ -1,12 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ChatInterface from './components/ChatInterface';
 import ConversationSidebar from './components/ConversationSidebar';
+import ConfirmationModal from './components/ConfirmationModal';
 import './App.css';
 
 function App() {
   const [conversations, setConversations] = useState([]);
   const [activeConversationId, setActiveConversationId] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Sidebar open state for mobile
+  const [modalState, setModalState] = useState({
+    isOpen: false,
+    message: '',
+    onConfirm: () => {},
+    onCancel: () => {}
+  });
   const abortControllerRef = useRef(null);
 
   // Effect to create a default conversation on first load
@@ -68,14 +75,24 @@ function App() {
     );
   };
 
-  // Delete conversation
-  const handleDeleteConversation = (id) => {
-    setConversations(prev => prev.filter(conv => conv.id !== id));
-    if (activeConversationId === id) {
-      // If the deleted conversation was active, select another
-      const remaining = conversations.filter(conv => conv.id !== id);
-      setActiveConversationId(remaining.length > 0 ? remaining[0].id : null);
+  // Delete conversation after confirmation
+  const handleDeleteConversation = (idToDelete) => {
+    const remainingConversations = conversations.filter(c => c.id !== idToDelete);
+    setConversations(remainingConversations);
+    if (activeConversationId === idToDelete) {
+      setActiveConversationId(remainingConversations.length > 0 ? remainingConversations[0].id : null);
     }
+    setModalState({ isOpen: false }); // Close the modal
+  };
+
+  // Open the confirmation modal
+  const promptDelete = (id) => {
+    setModalState({
+      isOpen: true,
+      message: 'Delete this conversation permanently?',
+      onConfirm: () => handleDeleteConversation(id),
+      onCancel: () => setModalState({ isOpen: false })
+    });
   };
 
   // Sort: pinned first, then by creation (id as timestamp)
@@ -121,7 +138,7 @@ function App() {
         }}
         onTogglePin={handleTogglePin}
         onRenameConversation={handleRenameConversation}
-        onDeleteConversation={handleDeleteConversation}
+        onDeleteConversation={promptDelete}
         onToggleSidebar={handleToggleSidebar}
         isNewChatDisabled={isNewChatDisabled}
       />
@@ -144,6 +161,13 @@ function App() {
           <p>Select a conversation or start a new one.</p>
         </div>
       )}
+      {/* Render the confirmation modal */}
+      <ConfirmationModal
+        isOpen={modalState.isOpen}
+        message={modalState.message}
+        onConfirm={modalState.onConfirm}
+        onCancel={modalState.onCancel}
+      />
     </div>
   );
 }

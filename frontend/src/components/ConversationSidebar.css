@@ -202,3 +202,7 @@
   border-radius: var(--radius-sm);
   width: 80%;
 }
+
+.rename-input::selection {
+  background-color: var(--primary-accent); 
+  color: var(--text-primary);

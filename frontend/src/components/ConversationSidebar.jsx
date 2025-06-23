@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import './ConversationSidebar.css';
 
 // El componente ConversationItem no necesita cambios, tu versión es correcta.
-function ConversationItem({ conversation, isActive, onSelect, onTogglePin, onRename, onDelete }) {
+function ConversationItem({ conversation, isActive, onSelect, onTogglePin, onRename, onDelete, isDeletable }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(conversation.name);
@@ -84,15 +84,17 @@ function ConversationItem({ conversation, isActive, onSelect, onTogglePin, onRen
           <button className="context-menu-item" onClick={() => { setEditing(true); setMenuOpen(false); }}>
             Rename
           </button>
-          <button
-            className="context-menu-item delete"
-            onClick={() => {
-              setMenuOpen(false);
-              if (window.confirm('Delete this conversation?')) onDelete(conversation.id);
-            }}
-          >
-            Delete
-          </button>
+          {isDeletable && (
+            <button
+              className="context-menu-item delete"
+              onClick={() => {
+                setMenuOpen(false);
+                onDelete(conversation.id);
+              }}
+            >
+              Delete
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -143,6 +145,7 @@ const ConversationSidebar = ({
             onTogglePin={onTogglePin}
             onRename={onRenameConversation}
             onDelete={onDeleteConversation}
+            isDeletable={conversations.length > 1}
           />
         ))}
       </div>
