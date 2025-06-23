@@ -85,6 +85,7 @@ Once both servers are running, open your web browser to `http://localhost:5173`.
 
 The project is organized into two main directories:
 
+```
 intelligent-pdf-chatbot/
 ├── backend/
 │   ├── main.py                 # Main FastAPI application
@@ -101,7 +102,7 @@ intelligent-pdf-chatbot/
     │   └── assets/             # SVG icons and other assets
     ├── public/                 # Static assets (e.g., favicon)
     └── ...                     # Config files (package.json, etc.)
-
+```
 
 ---
 
