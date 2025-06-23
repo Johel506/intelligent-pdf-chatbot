@@ -12,13 +12,13 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
-import json
-from contextlib import asynccontextmanager  # Import this for lifespan
+from contextlib import asynccontextmanager
+import json # <-- Global import for Pydantic and other uses
 
 # Now we can safely import our services
 # We are disabling this specific Pylint warning because we have a good reason
 # to load environment variables before this import.
-from services.pdf_service import extract_text_from_pdf
+from services.pdf_service import extract_documents_from_pdf
 from services.ai_service import stream_ai_response  # pylint: disable=C0413
 
 
@@ -29,8 +29,8 @@ CONVERSATION_HISTORY = {}
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Handles startup logic: Loads the PDF, creates chunks, embeddings,
-    and the FAISS vector store.
+    Handles startup logic: Loads documents from PDF, splits them into chunks
+    while preserving metadata, and creates the FAISS vector store.
     """
     global VECTOR_STORE
 
@@ -45,19 +45,19 @@ async def lifespan(app: FastAPI):
         raise RuntimeError("PDF_PATH environment variable not set.")
 
     print("Loading PDF for RAG pipeline...")
-    pdf_text = extract_text_from_pdf(pdf_path)
-    if not pdf_text:
-        raise RuntimeError(f"Could not load PDF context from '{pdf_path}'.")
+    page_documents = extract_documents_from_pdf(pdf_path)
+    if not page_documents:
+        raise RuntimeError(f"Could not load any documents from '{pdf_path}'.")
 
-    # Split text into chunks
+    # 2. Split documents into chunks (the splitter now preserves metadata)
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-    chunks = text_splitter.split_text(pdf_text)
-    print(f"PDF split into {len(chunks)} chunks.")
+    chunks = text_splitter.split_documents(page_documents)
+    print(f"PDF processed into {len(chunks)} chunks.")
 
-    # Create embeddings and the vector database
+    # 3. Create embeddings and FAISS (this works the same, FAISS stores metadata)
     embeddings = OpenAIEmbeddings()
-    VECTOR_STORE = FAISS.from_texts(texts=chunks, embedding=embeddings)
-    print("✅ FAISS vector store created successfully.")
+    VECTOR_STORE = FAISS.from_documents(documents=chunks, embedding=embeddings)
+    print("✅ FAISS vector store with metadata created successfully.")
 
     yield  # The application runs here
 
@@ -106,12 +106,10 @@ async def health_check(): #
         pdf_loaded=bool(VECTOR_STORE)
     )
 
-
-
 @app.post("/chat")
 async def chat_endpoint(message: ChatMessage):
     """
-    Chat endpoint that uses a RAG pipeline to get answers.
+    Main endpoint to receive user messages and stream an AI response using RAG.
     """
     global CONVERSATION_HISTORY, VECTOR_STORE
     if not VECTOR_STORE:
@@ -126,10 +124,25 @@ async def chat_endpoint(message: ChatMessage):
     print(f"Searching for relevant chunks for: '{message.message}'")
     retriever = VECTOR_STORE.as_retriever(search_kwargs={"k": 4})
     relevant_docs = retriever.get_relevant_documents(message.message)
+    # Prepare sources to send to the frontend
+    source_list = []
+    for doc in relevant_docs:
+        source_list.append({
+            "page_number": doc.metadata.get('page_number', 'N/A'),
+            "content": doc.page_content
+        })
+
     rag_context = "\n\n---\n\n".join([doc.page_content for doc in relevant_docs])
     print("RAG context created.")
+
     async def response_stream_generator():
         nonlocal full_ai_response_content
+
+        # Send sources first
+        sources_payload = json.dumps({"type": "sources", "sources": source_list})
+        yield f'data: {sources_payload}\n\n'
+
+        # Then stream the AI response
         async for chunk_data in stream_ai_response(
             message=message.message,
             pdf_context=rag_context,
@@ -138,16 +151,15 @@ async def chat_endpoint(message: ChatMessage):
             try:
                 line = chunk_data.strip()
                 if line.startswith("data: "):
-                    import json
                     json_payload = json.loads(line[len("data: "):])
                     if json_payload.get("type") == "content":
                         content_part = json_payload.get("content", "")
                         full_ai_response_content += content_part
                 yield chunk_data
-            except Exception:
+            except json.JSONDecodeError:
                 yield chunk_data
         if full_ai_response_content:
-            assistant_message_entry = {"role": "assistant", "content": full_ai_response_content}
+            assistant_message_entry = {"role": "assistant", "content": full_ai_response_content, "sources": source_list}
             CONVERSATION_HISTORY[conversation_id].append(assistant_message_entry)
             print(f"✅ AI Response saved to history for conversation_id: {conversation_id}")
         else:

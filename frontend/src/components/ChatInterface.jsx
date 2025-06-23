@@ -15,8 +15,9 @@ const ChatInterface = () => {
     if (input.trim() === '' || isLoading) return;
 
     const userMessage = { role: 'user', content: input };
-    // Add user message and an empty placeholder for the AI's response
-    setMessages(prev => [...prev, userMessage, { role: 'ai', content: '' }]);
+    // When adding the AI placeholder, initialize its sources array
+    const aiPlaceholder = { role: 'ai', content: '', sources: [] };
+    setMessages(prev => [...prev, userMessage, aiPlaceholder]);
     
     const messageToSend = input;
     setInput('');
@@ -64,7 +65,14 @@ const ChatInterface = () => {
             // --- DIAGNOSTIC LOG ---
             console.log('Received stream data:', data); 
 
-            if (data.type === 'content') {
+            if (data.type === 'sources') { // <-- NEW HANDLER
+              setMessages(prev => {
+                const newMessages = [...prev];
+                const lastMessage = newMessages[newMessages.length - 1];
+                lastMessage.sources = data.sources; // Store the sources
+                return newMessages;
+              });
+            } else if (data.type === 'content') {
               setMessages(prev => {
                 const newMessages = [...prev];
                 const lastMessage = newMessages[newMessages.length - 1];

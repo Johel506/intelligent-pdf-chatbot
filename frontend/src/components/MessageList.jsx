@@ -43,10 +43,25 @@ const MessageList = ({ messages }) => {
         messages.map((msg, index) => (
           <div key={index} className={`message ${msg.role}`}>
             {msg.role === 'ai' && getAvatar(msg.role)}
-            <div className="message-content">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {msg.content}
-              </ReactMarkdown>
+            <div className="message-container">
+              <div className="message-content">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {msg.content || "..."}
+                </ReactMarkdown>
+              </div>
+              {msg.role === 'ai' && msg.sources && msg.sources.length > 0 && (
+                <div className="sources-container">
+                  <strong>Sources:</strong>
+                  {msg.sources.map((source, i) => (
+                    <div key={i} className="source-item">
+                      <details>
+                        <summary>Page {source.page_number}</summary>
+                        <p>{source.content}</p>
+                      </details>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             {msg.role === 'user' && getAvatar(msg.role)}
           </div>
