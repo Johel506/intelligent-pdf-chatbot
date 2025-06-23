@@ -6,6 +6,7 @@
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  overflow: visible;
 }
 
 .sidebar-header {
@@ -37,6 +38,7 @@
 .conversation-list {
   flex-grow: 1;
   overflow-y: auto;
+  overflow-x: visible;
   padding: var(--space-sm);
 }
 
@@ -45,10 +47,11 @@
   border-radius: var(--radius-md);
   cursor: pointer;
   margin-bottom: var(--space-xs);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   color: var(--text-secondary);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
 }
 
 .conversation-item:hover {
@@ -59,4 +62,90 @@
   background-color: var(--primary-color);
   color: var(--text-white);
   font-weight: 500;
+}
+
+.conversation-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-grow: 1; 
+}
+
+/* Pin icon next to conversation name */
+.pin-icon {
+  margin-right: 0.3em;
+  color: var(--accent-color);
+  font-size: 1em;
+  vertical-align: middle;
+}
+
+/* Kebab menu icon (three dots) */
+.kebab-menu-icon {
+  display: inline-block;
+  margin-left: auto;
+  padding: 0 0.5em;
+  color: var(--text-muted);
+  font-size: 1.2em;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+  user-select: none;
+}
+
+.conversation-item:hover .kebab-menu-icon,
+.conversation-item.active .kebab-menu-icon {
+  opacity: 1;
+}
+
+/* Context menu styles */
+.context-menu {
+  position: absolute;
+  right: 1.5em;
+  top: 2.2em;
+  min-width: 120px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  padding: 0.25em 0;
+  animation: fadeIn 0.15s;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.context-menu-item {
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 0.5em 1em;
+  color: var(--text-primary);
+  font-size: 1em;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.context-menu-item:hover {
+  background: var(--bg-tertiary);
+}
+.context-menu-item.delete {
+  color: var(--danger-color);
+}
+.context-menu-item.delete:hover {
+  background: var(--danger-hover);
+  color: var(--text-white);
+}
+
+/* Inline rename input */
+.rename-input {
+  font-size: 1em;
+  padding: 0.2em 0.4em;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  width: 80%;
+  margin-left: 0.2em;
 } 

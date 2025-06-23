@@ -16,10 +16,12 @@ function App() {
   }, []);
 
   const handleNewChat = () => {
+    const nextNumber = conversations.length + 1;
     const newConversation = {
       id: 'session-' + Date.now(),
-      name: 'New Conversation',
+      name: `Chat ${nextNumber}`,
       messages: [],
+      isPinned: false,
     };
     setConversations(prev => [...prev, newConversation]);
     setActiveConversationId(newConversation.id);
@@ -28,6 +30,42 @@ function App() {
   const handleSelectConversation = (id) => {
     setActiveConversationId(id);
   };
+
+  // Toggle pin/unpin
+  const handleTogglePin = (id) => {
+    setConversations(prev =>
+      prev.map(conv =>
+        conv.id === id ? { ...conv, isPinned: !conv.isPinned } : conv
+      )
+    );
+  };
+
+  // Rename conversation
+  const handleRenameConversation = (id, newName) => {
+    setConversations(prev =>
+      prev.map(conv =>
+        conv.id === id ? { ...conv, name: newName } : conv
+      )
+    );
+  };
+
+  // Delete conversation
+  const handleDeleteConversation = (id) => {
+    setConversations(prev => prev.filter(conv => conv.id !== id));
+    if (activeConversationId === id) {
+      // If the deleted conversation was active, select another
+      const remaining = conversations.filter(conv => conv.id !== id);
+      setActiveConversationId(remaining.length > 0 ? remaining[0].id : null);
+    }
+  };
+
+  // Sort: pinned first, then by creation (id as timestamp)
+  const sortedConversations = [...conversations].sort((a, b) => {
+    if (a.isPinned === b.isPinned) {
+      return parseInt(a.id.replace('session-', '')) - parseInt(b.id.replace('session-', ''));
+    }
+    return b.isPinned - a.isPinned;
+  });
 
   // Find the currently active conversation object
   const activeConversation = conversations.find(c => c.id === activeConversationId);
@@ -45,10 +83,13 @@ function App() {
   return (
     <div className="app-container">
       <ConversationSidebar
-        conversations={conversations}
+        conversations={sortedConversations}
         activeConversationId={activeConversationId}
         onNewChat={handleNewChat}
         onSelectConversation={handleSelectConversation}
+        onTogglePin={handleTogglePin}
+        onRenameConversation={handleRenameConversation}
+        onDeleteConversation={handleDeleteConversation}
       />
       {activeConversation ? (
         <ChatInterface

@@ -19,7 +19,7 @@ import json # <-- Global import for Pydantic and other uses
 # We are disabling this specific Pylint warning because we have a good reason
 # to load environment variables before this import.
 from services.pdf_service import extract_documents_from_pdf
-from services.ai_service import stream_ai_response  # pylint: disable=C0413
+from services.ai_service import classify_intent, stream_greeting_response, stream_rag_response
 
 
 # --- Global In-Memory Storage & RAG Setup ---
@@ -109,66 +109,76 @@ async def health_check(): #
 @app.post("/chat")
 async def chat_endpoint(message: ChatMessage):
     """
-    Main endpoint to receive user messages and stream an AI response using RAG.
+    Acts as a router. First classifies intent, then routes to the
+    appropriate handler (RAG or greeting).
     """
     global CONVERSATION_HISTORY, VECTOR_STORE
     if not VECTOR_STORE:
-        raise HTTPException(status_code=503, detail="Vector store is not initialized yet.")
+        raise HTTPException(status_code=503, detail="Vector store not initialized.")
+
     conversation_id = message.conversation_id
     if conversation_id not in CONVERSATION_HISTORY:
         CONVERSATION_HISTORY[conversation_id] = []
+
+    # Add user message to history immediately
     user_message_entry = {"role": "user", "content": message.message}
     CONVERSATION_HISTORY[conversation_id].append(user_message_entry)
-    retriever = VECTOR_STORE.as_retriever(search_kwargs={"k": 4})
-    relevant_docs = retriever.get_relevant_documents(message.message)
+
+    # --- INTENT ROUTER ---
+    intent = await classify_intent(message.message)
+    print(f"User intent classified as: {intent}")
+
+    if intent == "GREETING":
+        # Handle simple greetings
+        async def greeting_generator():
+            full_response = ""
+            async for chunk in stream_greeting_response(CONVERSATION_HISTORY[conversation_id]):
+                try:
+                    line = chunk.strip()
+                    if line.startswith("data: "):
+                        json_payload = json.loads(line[len("data: "):])
+                        if json_payload.get("type") == "content":
+                            full_response += json_payload.get("content", "")
+                except json.JSONDecodeError:
+                    pass
+                yield chunk
+            
+            # Save full greeting response to history
+            if full_response:
+                CONVERSATION_HISTORY[conversation_id].append({"role": "assistant", "content": full_response})
+
+        return StreamingResponse(greeting_generator(), media_type="text/event-stream")
     
-    source_list = []
-    for doc in relevant_docs:
-        source_list.append({
-            "page_number": doc.metadata.get('page_number', 'N/A'),
-            "content": doc.page_content
-        })
+    else: # Default to "SEARCH"
+        # Handle RAG questions (your existing logic)
+        retriever = VECTOR_STORE.as_retriever(search_kwargs={"k": 4})
+        relevant_docs = retriever.get_relevant_documents(message.message)
+        
+        source_list = [{"page_number": doc.metadata.get('page_number', 'N/A'), "content": doc.page_content} for doc in relevant_docs]
+        rag_context = "\n\n".join([f'<source page="{doc.metadata.get("page_number", "N/A")}">\n{doc.page_content}\n</source>' for doc in relevant_docs])
 
-    # Format the context for the LLM with source tags
-    rag_context_parts = []
-    for doc in relevant_docs:
-        page_num = doc.metadata.get('page_number', 'N/A')
-        rag_context_parts.append(f'<source page="{page_num}">\n{doc.page_content}\n</source>')
-    rag_context = "\n\n".join(rag_context_parts)
+        async def rag_generator():
+            full_response = ""
+            
+            sources_payload = json.dumps({"type": "sources", "sources": source_list})
+            yield f'data: {sources_payload}\n\n'
 
-    full_ai_response_content = ""
+            async for chunk in stream_rag_response(message.message, rag_context, CONVERSATION_HISTORY[conversation_id]):
+                try:
+                    line = chunk.strip()
+                    if line.startswith("data: "):
+                        json_payload = json.loads(line[len("data: "):])
+                        if json_payload.get("type") == "content":
+                            full_response += json_payload.get("content", "")
+                except json.JSONDecodeError:
+                    pass
+                yield chunk
 
-    async def response_stream_generator():
-        nonlocal full_ai_response_content
+            # Save full RAG response to history
+            if full_response:
+                 CONVERSATION_HISTORY[conversation_id].append({"role": "assistant", "content": full_response, "sources": source_list})
 
-        sources_payload = json.dumps({"type": "sources", "sources": source_list})
-        yield f'data: {sources_payload}\n\n'
-
-        async for chunk_data in stream_ai_response(
-            message=message.message,
-            pdf_context=rag_context,
-            conversation_history=CONVERSATION_HISTORY[conversation_id]
-        ):
-            try:
-                line = chunk_data.strip()
-                if line.startswith("data: "):
-                    json_payload = json.loads(line[len("data: "):])
-                    if json_payload.get("type") == "content":
-                        content_part = json_payload.get("content", "")
-                        full_ai_response_content += content_part
-                
-                yield chunk_data
-            except json.JSONDecodeError:
-                yield chunk_data
-
-        if full_ai_response_content:
-            assistant_message_entry = {"role": "assistant", "content": full_ai_response_content, "sources": source_list}
-            CONVERSATION_HISTORY[conversation_id].append(assistant_message_entry)
-            print(f"✅ AI Response saved to history for conversation_id: {conversation_id}")
-        else:
-            print(f"⚠️ AI Response was empty for conversation_id: {conversation_id}, not saved.")
-
-    return StreamingResponse(response_stream_generator(), media_type="text/event-stream")
+        return StreamingResponse(rag_generator(), media_type="text/event-stream")
 
 if __name__ == "__main__":
     import uvicorn
