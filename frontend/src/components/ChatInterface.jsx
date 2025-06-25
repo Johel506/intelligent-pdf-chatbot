@@ -4,6 +4,7 @@ import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import './ChatInterface.css';
 import exportIcon from '../assets/export-icon.svg';
+import { t } from '../utils/translations';
 
 const ChatInterface = ({ conversation, setMessages, onToggleSidebar }) => {
   const { id: conversationId, messages } = conversation;
@@ -31,77 +32,90 @@ const ChatInterface = ({ conversation, setMessages, onToggleSidebar }) => {
   };
 
   const handleSendMessage = async () => {
-    // Do not send empty messages or if already loading
-    if (input.trim() === '' || isLoading) return;
-
-    const userMessage = { role: 'user', content: input };
-    const aiPlaceholder = { role: 'ai', content: '', sources: [] };
-    setMessages([...messages, userMessage, aiPlaceholder]);
-
     const messageToSend = input;
+    if (messageToSend.trim() === '' || isLoading) return;
+
+    const userMessage = { role: 'user', content: messageToSend };
+    const aiPlaceholder = { role: 'ai', content: '', sources: [] };
+    const initialMessages = [...messages, userMessage, aiPlaceholder];
+    
+    setMessages(initialMessages);
     setInput('');
     setIsLoading(true);
     abortControllerRef.current = new AbortController();
 
     try {
-        const response = await fetch('http://127.0.0.1:8000/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                message: messageToSend,
-                conversation_id: conversationId,
-            }),
-            signal: abortControllerRef.current.signal,
-        });
+      const response = await fetch('http://localhost:8000/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: messageToSend,
+          conversation_id: conversationId,
+        }),
+        signal: abortControllerRef.current.signal,
+      });
 
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-
-        let currentMessages = [...messages, userMessage, { role: 'ai', content: '', sources: [] }];
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) {
-                setIsLoading(false);
-                break;
-            }
-
-            buffer += decoder.decode(value, { stream: true });
-            let lines = buffer.split('\n');
-            buffer = lines.pop();
-
-            for (let line of lines) {
-                if (!line.trim().startsWith('data:')) continue;
-                try {
-                    const data = JSON.parse(line.slice(6));
-
-                    if (data.type === 'sources') {
-                        currentMessages[currentMessages.length - 1].sources = data.sources;
-                    } else if (data.type === 'content') {
-                        currentMessages[currentMessages.length - 1].content += data.content;
-                    }
-
-                    setMessages([...currentMessages]);
-
-                } catch (e) {
-                    console.error("Failed to parse stream data chunk:", line, e);
-                }
-            }
+      if (!response.ok) {
+        let errorKey = 'serverError';
+        if (response.status === 429) {
+          errorKey = 'rateLimitError';
         }
-    } catch (err) {
-        if (err.name === 'AbortError') {
-            console.log('Fetch aborted.');
-            // Remove the placeholder message if fetch is aborted
-            setMessages(messages.slice(0, messages.length));
-            return;
-        }
-        console.error("Failed to fetch stream:", err);
-        const errorMsg = { role: 'ai', content: 'Error: Could not connect to the service.' };
-        setMessages([...messages, userMessage, errorMsg]);
+        
+        const messagesOnError = initialMessages.slice(0, -1);
+        const errorMsg = { role: 'ai', content: t(errorKey), sources: [] };
+        setMessages([...messagesOnError, errorMsg]);
+        
         setIsLoading(false);
+        return;
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let currentMessages = [...initialMessages];
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          setIsLoading(false);
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        let lines = buffer.split('\n');
+        buffer = lines.pop();
+
+        for (let line of lines) {
+          if (!line.trim().startsWith('data:')) continue;
+          try {
+            const data = JSON.parse(line.slice(6));
+            const lastMessage = currentMessages[currentMessages.length - 1];
+            
+            if (data.type === 'sources') {
+              lastMessage.sources = data.sources;
+            } else if (data.type === 'content') {
+              lastMessage.content += data.content;
+            }
+            
+            setMessages([...currentMessages]);
+
+          } catch (e) {
+            console.error("Failed to parse stream data chunk:", line, e);
+          }
+        }
+      }
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        console.log('Fetch aborted.');
+        return;
+      }
+      
+      console.error("Network error:", err);
+      
+      const messagesOnError = initialMessages.slice(0, -1);
+      const errorMsg = { role: 'ai', content: t('networkError'), sources: [] };
+      setMessages([...messagesOnError, errorMsg]);
+      setIsLoading(false);
     }
   };
 

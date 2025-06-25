@@ -1,0 +1,5 @@
+{
+  "networkError": "Could not connect to the server. Please check your internet connection and try again.",
+  "serverError": "An unexpected error occurred on the server. Please try again later.",
+  "rateLimitError": "Too many requests. Please wait a moment before trying again."
+} 

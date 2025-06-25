@@ -6,7 +6,10 @@ import os
 load_dotenv()
 
 # Step 2: Import libraries and services after loading environment variables
-from fastapi import FastAPI, HTTPException
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -17,6 +20,8 @@ import json
 
 from services.pdf_service import extract_documents_from_pdf
 from services.ai_service import classify_intent, stream_greeting_response, stream_rag_response
+
+limiter = Limiter(key_func=get_remote_address)
 
 # In-memory storage for vector database and conversation history
 VECTOR_STORE = None
@@ -64,6 +69,8 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -96,7 +103,8 @@ async def health_check():
     )
 
 @app.post("/chat")
-async def chat_endpoint(message: ChatMessage):
+@limiter.limit("5/minute")
+async def chat_endpoint(request: Request, message: ChatMessage):
     """
     Routes the message: classifies intent, then handles either RAG or greeting.
     """
