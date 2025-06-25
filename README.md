@@ -7,7 +7,8 @@ An advanced, context-aware chat application designed to provide instant, verifia
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-009688?style=flat-square&logo=fastapi)
 ![React](https://img.shields.io/badge/React-19.1.0-61DAFB?style=flat-square&logo=react)
 
-![Final Project Showcase](path/to/your/screenshot.png)
+![Final Project Showcase](https://github.com/user-attachments/assets/12b659df-65e7-4280-83a1-206babfab976)
+
 
 ---
 
@@ -43,6 +44,8 @@ An advanced, context-aware chat application designed to provide instant, verifia
     cd backend
     # Create and activate a virtual environment (recommended)
     python -m venv venv
+    .\venv\Scripts\Activate.ps1 
+    or
     source venv/bin/activate  # On Windows: venv\Scripts\activate
 
     # Create .env file from the example
