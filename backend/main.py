@@ -5,6 +5,14 @@ from dotenv import load_dotenv
 import os
 load_dotenv()
 
+# Read environment variable for CORS origins
+CORS_ORIGINS_STR = os.getenv("CORS_ORIGINS", "")
+ALLOWED_ORIGINS = [origin.strip() for origin in CORS_ORIGINS_STR.split(',') if origin]
+
+# Add default origin for local development if empty
+if not ALLOWED_ORIGINS:
+    ALLOWED_ORIGINS = ["http://localhost:5173"]
+
 # Step 2: Import libraries and services after loading environment variables
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -74,7 +82,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

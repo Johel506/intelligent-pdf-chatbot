@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import './MessageList.css';
+import companyLogo from '../assets/mcdigital_logo.png';
 
 // Utility to extract cited pages from the AI's answer
 function extractCitedPages(content) {
@@ -45,7 +46,7 @@ const MessageList = ({ messages }) => {
     } else {
       return (
         <div className="avatar ai-avatar">
-          <span>🤖</span>
+         <img src={companyLogo} alt="Company Logo" width="30" height="30" />
         </div>
       );
     }
@@ -55,7 +56,9 @@ const MessageList = ({ messages }) => {
     <div className="message-list">
       {messages.length === 0 ? (
         <div className="empty-chat-container">
-          <div className="empty-chat-logo">🤖</div>
+        <div className="empty-chat-logo">
+            <img src={companyLogo} alt="Company Logo" style={{ width: '192px', height: '192px' }}/>
+          </div>
           <h2>Welcome to PDF Chatbot</h2>
           <p>
             I'm ready to help you with your document.
