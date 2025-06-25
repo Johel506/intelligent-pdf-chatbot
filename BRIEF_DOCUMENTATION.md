@@ -46,3 +46,10 @@ The final application includes not only the core requirements but also several a
 - **State Management Complexity**: As multi-conversation features were added, managing state locally became unfeasible. This was solved by refactoring the application to "lift state up" to the `App.jsx` component.
 - **Responsive Design Bugs**: The initial two-column layout broke on mobile. This was fixed by implementing a professional responsive pattern with CSS media queries, hiding the sidebar behind a "hamburger" menu and using an overlay to handle its dismissal.
 - **Minor UX/CSS Bugs**: Several small but impactful bugs (e.g., invisible close buttons, unreadable selected text in inputs, flawed "new chat" logic) were identified and fixed through iterative debugging and refinement of CSS and component logic.
+
+### Deployment Infrastructure Limitations
+- **cPanel WSGI/ASGI Incompatibility**: The primary deployment challenge was the fundamental architectural incompatibility between cPanel's WSGI-based hosting environment and FastAPI's requirement for ASGI (Asynchronous Server Gateway Interface). This incompatibility prevents direct deployment regardless of code optimization.
+- **RAG Pipeline Memory Requirements**: The RAG implementation, which processes the entire PDF into vector embeddings using LangChain and FAISS, requires substantial memory resources that exceed the limitations of both cPanel hosting and free-tier cloud platforms.
+- **Alternative Platform Testing**: Multiple deployment approaches were tested including simplified versions without LangChain and Fast-CPU optimizations, but the core WSGI/ASGI architectural conflict remained insurmountable within the available hosting infrastructure.
+
+**Resolution**: The application is fully functional and optimally configured for local development and testing. All documentation has been prepared for seamless local setup by technical reviewers.
