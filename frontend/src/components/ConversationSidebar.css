@@ -206,3 +206,4 @@
 .rename-input::selection {
   background-color: var(--primary-accent); 
   color: var(--text-primary);
+  }

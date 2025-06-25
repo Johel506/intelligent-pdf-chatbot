@@ -1,11 +1,9 @@
 // frontend/src/services/api.js
 import axios from 'axios';
 
-// Vite expone las variables de entorno en el objeto import.meta.env
-// Usará el valor de .env.production cuando hagas 'npm run build'
-// y el de .env.development cuando hagas 'npm run dev'.
+
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL: __API_BASE_URL__, 
 });
 
 /**
